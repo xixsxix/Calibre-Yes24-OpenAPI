@@ -1,16 +1,17 @@
 # Calibre YES24 Metadata Plugin
 
-**Official YES24 Open API Metadata Source for Calibre**
+**YES24 공식 Open API를 사용하는 독립적인 Calibre Desktop 메타데이터 소스 플러그인**
 
-`Calibre-Yes24-OpenAPI` is an independent Calibre Desktop metadata source plugin that retrieves Korean book metadata and high-resolution covers from the official YES24 Open API.
+An independent Calibre Desktop metadata source plugin using the official YES24 Open API.
 
-Current release candidate: **0.4.11**
+한국 도서 메타데이터와 고해상도 표지를 Calibre로 가져옵니다. 이 프로젝트는 YES24 또는 Calibre의 공식 플러그인이 아니며, 2026 YES24 Open API를 기반으로 독립 구현되었습니다.
 
-> This project is a new implementation built for the 2026 YES24 Open API. It is not a fork of the older YES24 Calibre plugins.
+Retrieves Korean book metadata and high-resolution covers for Calibre. This is an independent community project, not an official YES24 or Calibre plugin.
 
-## What it does
+현재 릴리스 후보 / Current release candidate: **0.4.12**  
+현재 공개 릴리스 / Current public release: **0.4.11**
 
-The plugin provides both metadata lookup and cover download for Calibre.
+## 주요 기능 / What it does
 
 - title / subtitle-aware search
 - author-aware candidate ranking
@@ -24,21 +25,24 @@ The plugin provides both metadata lookup and cover download for Calibre.
 - Comments fallback with TOC-like text rejection
 - high-resolution `/XL` cover download
 
-The design goal is deliberately conservative:
+설계 원칙은 보수적입니다.
 
+> **잘못된 책이나 판본을 확신해서 적용하는 것보다 결과를 비워 두는 편이 낫습니다.**  
 > **A missing result is better than confidently applying the wrong book or edition.**
 
-## Requirements
+## 요구 사항 / Requirements
 
 - Calibre 5.0 or later
-- a YES24 Open API key from `developers.yes24.com`
+- YES24 Open API key from `developers.yes24.com`
 - network access to the YES24 Open API and YES24 product pages used by narrow fallbacks
 
-## Installation
+## 설치 / Installation
 
-### From a GitHub Release
+### GitHub Release에서 설치 / From a GitHub Release
 
-Download `Yes24.zip` from the Releases page, then install it in Calibre:
+일반 사용자는 **Releases에서 `Yes24.zip`을 다운로드**해 설치하세요. GitHub가 자동 생성하는 **`Source code (zip)`은 Calibre 설치 파일이 아닙니다.**
+
+For normal installation, download **`Yes24.zip` from Releases**. The GitHub-generated **`Source code (zip)` archive is not the Calibre plugin ZIP.**
 
 ```text
 Preferences
@@ -47,29 +51,23 @@ Preferences
 → select Yes24.zip
 ```
 
-Restart Calibre after installation.
+설치 후 Calibre를 다시 시작하세요. / Restart Calibre after installation.
 
-### Build from source
+### 소스에서 빌드 / Build from source
 
 ```powershell
 python .\build_plugin.py
 ```
 
-This creates:
-
-```text
-Yes24.zip
-```
-
-You can also install the generated ZIP from the command line:
+This creates `Yes24.zip`. You can install it from the command line with:
 
 ```powershell
 calibre-customize.exe -a .\Yes24.zip
 ```
 
-## Configure the YES24 API key
+## YES24 API key 설정 / Configure the API key
 
-In Calibre:
+Calibre에서:
 
 ```text
 Preferences
@@ -80,11 +78,11 @@ Preferences
 → enter your YES24 API key
 ```
 
-The plugin stores the key through Calibre's plugin preferences. Do not commit API keys to Git or include them in bug reports.
+API key는 Calibre 플러그인 설정에 저장됩니다. Git에 커밋하거나 버그 리포트에 포함하지 마세요.
 
-## Matching safety
+The key is stored through Calibre's plugin preferences. Do not commit API keys to Git or include them in bug reports.
 
-The plugin treats ISBN states differently:
+## 매칭 안전 정책 / Matching safety
 
 ```text
 exact ISBN found
@@ -102,13 +100,17 @@ no ISBN supplied
 → title/author matching is used conservatively
 ```
 
+번역서는 번역자 일치를 강한 판본 증거로 사용합니다. 시리즈 정보는 강하게 호환되는 동일 작품 판본에서만 상속할 수 있으며 이미 선택된 winner를 바꾸지 않습니다.
+
 Translated works use translator agreement as strong edition evidence. Series metadata can be inherited only from a strongly compatible same-work edition and never changes the already selected winner.
 
 See [METADATA_DESIGN.md](./METADATA_DESIGN.md) for the full decision rules.
 
-## 0.4.11 validation
+## 0.4.12 검증 / Validation
 
-Before the first public release, 0.4.11 passed broad real-data validation in the private development lab:
+0.4.12는 0.4.11의 안전 정책을 유지하면서, 사용자가 짧은 본제목만 입력했을 때 YES24 후보 제목 자체에 부제가 포함되어 있어 매칭을 놓치는 경우를 좁게 수정합니다.
+
+The 0.4.12 candidate keeps the 0.4.11 safety policy and adds a narrow candidate-side subtitle fix.
 
 ```text
 normal ISBN audit, 100 books
@@ -123,40 +125,46 @@ normal ISBN audit, 100 books
 no-ISBN stress audit, 100 books
 - accepted: 94
 - rejected: 6
-- release-blocking wrong-work / wrong-translation / wrong-series cases: 0
+- accepted with library ISBN: 39
+- accepted with another ISBN: 53
+- TOC-like Comments: 0
+- marketing/recommendation series: 0
 
 wrong-ISBN stress audit, 20 books
 - conflict: 19 → safely recovered through title/author fallback
 - miss: 1 → safely rejected
 ```
 
-Final installation smoke tests also reconfirmed both a positive path (`십팔사략`, eBook ISBN `9791195329373`, `현대지성 클래식 #3`) and the critical safety path where an unresolved eBook ISBN for `페스트` was not silently replaced with a different print edition.
+표적 회귀에서는 `질투라는 감옥` / `야마모토 케이`가 ISBN 없이 정상 검색되며, 의도적으로 잘못 넣은 부제는 계속 거절됩니다. 첫 수정안에서 생겼던 `화폐전쟁 1~4` 회귀도 refined patch에서 복구했습니다.
 
-See [RELEASE_NOTES_0.4.11.md](./RELEASE_NOTES_0.4.11.md) for release details.
+See [RELEASE_NOTES_0.4.12.md](./RELEASE_NOTES_0.4.12.md) for details. The released 0.4.11 history remains in [RELEASE_NOTES_0.4.11.md](./RELEASE_NOTES_0.4.11.md).
 
-## Repository scope
+## 저장소 범위 / Repository scope
 
-This public repository intentionally stays small:
+이 공개 저장소는 의도적으로 작게 유지합니다.
 
 ```text
 yes24.py                 Calibre Metadata Source plugin
 build_plugin.py           builds the installable Yes24.zip
 README.md                 installation and user-facing overview
 METADATA_DESIGN.md        matching and safety design
-RELEASE_NOTES_0.4.11.md   first public release notes
+RELEASE_NOTES_0.4.11.md   0.4.11 release notes
+RELEASE_NOTES_0.4.12.md   0.4.12 release notes
 SECURITY.md               credential and reporting guidance
 LICENSE                   GPL-3.0-only license
 ```
 
-Bulk-audit scripts, captured API responses, local Calibre databases, and generated CSV reports are development-lab material and are intentionally not published here. In particular, captured YES24 API response fixtures are not redistributed.
+Bulk-audit scripts, captured API responses, local Calibre databases, and generated CSV reports are private development-lab material and are intentionally not published here. Captured YES24 API response fixtures are not redistributed.
 
-## Security
+## 보안 / Security
+
+YES24 API key를 공개하지 마세요. 로그를 첨부할 때는 인증정보와 불필요한 개인 경로를 제거하세요.
 
 Never publish your YES24 API key. If a bug report needs logs, remove credentials and unrelated personal paths first.
 
 See [SECURITY.md](./SECURITY.md).
 
-## Related projects / prior art
+## 관련 프로젝트 / Related projects
 
 YES24 integrations for Calibre existed before this project, including older Calibre Desktop metadata plugins and newer cover-only or Calibre-Web integrations. Those projects largely rely on YES24 HTML scraping or predate the 2026 official Open API.
 
@@ -168,6 +176,7 @@ GNU General Public License v3.0 only. See [LICENSE](./LICENSE).
 
 ## Status
 
-**0.4.11 is functionally frozen and release-ready.**
+**0.4.12 is the current release candidate.**
 
-The next stage is real-world Calibre usage. New changes should be driven by reproducible user cases rather than feature expansion.
+새 변경은 기능 확장보다 실제 Calibre 사용에서 재현 가능한 사례를 우선합니다.  
+New changes should be driven by reproducible real-world Calibre cases rather than feature expansion.

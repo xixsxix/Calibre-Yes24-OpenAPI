@@ -71,7 +71,7 @@ class Yes24(Source):
     name = "Yes24"
     description = "Downloads metadata and high-resolution covers from YES24"
     author = "xixsxix"
-    version = (0, 4, 11)
+    version = (0, 4, 12)
     minimum_calibre_version = (5, 0, 0)
     capabilities = frozenset({"identify", "cover"})
     touched_fields = frozenset({
@@ -1723,6 +1723,20 @@ class Yes24(Source):
     def _title_match_metrics(cls, query_title, item):
         profile = cls._title_profile(query_title)
         main, candidate_subtitle, candidates = cls._candidate_title_values(item)
+        candidate_profile = cls._title_profile(main)
+        candidate_side_structure = bool(
+            not profile["structured"] and candidate_profile["structured"]
+        )
+        candidate_primary = (
+            candidate_profile["primary"]
+            if candidate_side_structure
+            else main
+        )
+        if not candidate_subtitle and candidate_side_structure:
+            candidate_subtitle = candidate_profile["subtitle"]
+        structured = bool(
+            profile["structured"] or candidate_side_structure
+        )
 
         if not profile["full"] or not main:
             return {
@@ -1733,22 +1747,26 @@ class Yes24(Source):
                 "combined_similarity": 0.0,
                 "subtitle_similarity": 0.0,
                 "subtitle_conflict": False,
-                "structured": profile["structured"],
+                "structured": structured,
             }
 
         full_norm = cls._normalize_match_text(profile["full"])
         primary_norm = cls._normalize_match_text(profile["primary"])
-        main_norm = cls._normalize_match_text(main)
+        candidate_primary_norm = cls._normalize_match_text(candidate_primary)
         candidate_norms = [cls._normalize_match_text(value) for value in candidates]
 
         full_exact = bool(full_norm and full_norm in candidate_norms)
-        primary_exact = bool(primary_norm and primary_norm == main_norm)
+        primary_exact = bool(
+            primary_norm and primary_norm == candidate_primary_norm
+        )
 
         combined_similarity = max(
             (cls._title_similarity(profile["full"], value) for value in candidates),
             default=0.0,
         )
-        primary_similarity = cls._title_similarity(profile["primary"], main)
+        primary_similarity = cls._title_similarity(
+            profile["primary"], candidate_primary
+        )
 
         subtitle_similarity = 0.0
         subtitle_conflict = False
@@ -1782,7 +1800,7 @@ class Yes24(Source):
             "combined_similarity": combined_similarity,
             "subtitle_similarity": subtitle_similarity,
             "subtitle_conflict": subtitle_conflict,
-            "structured": profile["structured"],
+            "structured": structured,
         }
 
     @classmethod

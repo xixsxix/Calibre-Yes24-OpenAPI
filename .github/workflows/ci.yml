@@ -33,6 +33,6 @@ jobs:
               assert names == ["__init__.py"], names
               source = archive.read("__init__.py").decode("utf-8")
               compile(source, "__init__.py", "exec")
-              assert "version = (0, 4, 11)" in source
+              assert "version = (0, 4, 12)" in source
           print("Yes24.zip structure and source compile: OK")
           PY
