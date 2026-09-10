@@ -1,0 +1,27 @@
+# Secrets / local environment
+.env
+.ENV
+*.env
+
+# Calibre / local library data
+metadata.db
+*.db-journal
+
+# Private development/audit material
+audits/
+fixtures/
+*.csv
+
+# Generated plugin artifact
+Yes24.zip
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

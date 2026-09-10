@@ -108,7 +108,7 @@ See [METADATA_DESIGN.md](./METADATA_DESIGN.md) for the full decision rules.
 
 ## 0.4.11 validation
 
-Before the first public release, 0.4.11 passed broad real-data validation:
+Before the first public release, 0.4.11 passed broad real-data validation in the private development lab:
 
 ```text
 normal ISBN audit, 100 books
@@ -134,18 +134,21 @@ Final installation smoke tests also reconfirmed both a positive path (`십팔사
 
 See [RELEASE_NOTES_0.4.11.md](./RELEASE_NOTES_0.4.11.md) for release details.
 
-## Development tools
+## Repository scope
 
-The repository includes several optional development/audit helpers:
+This public repository intentionally stays small:
 
 ```text
-build_plugin.py          build Yes24.zip
-test_yes24.py            direct YES24 Open API probe / fixture collector
-bulk_audit.py            read-only audit against a Calibre library
-bulk_stress_audit.py     no-ISBN / wrong-ISBN stress audit
+yes24.py                 Calibre Metadata Source plugin
+build_plugin.py           builds the installable Yes24.zip
+README.md                 installation and user-facing overview
+METADATA_DESIGN.md        matching and safety design
+RELEASE_NOTES_0.4.11.md   first public release notes
+SECURITY.md               credential and reporting guidance
+LICENSE                   GPL-3.0-only license
 ```
 
-Audit output such as CSV reports is intentionally ignored by Git and should not be committed.
+Bulk-audit scripts, captured API responses, local Calibre databases, and generated CSV reports are development-lab material and are intentionally not published here. In particular, captured YES24 API response fixtures are not redistributed.
 
 ## Security
 

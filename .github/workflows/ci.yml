@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compile sources
+        run: python -m py_compile yes24.py build_plugin.py
+
+      - name: Build plugin ZIP
+        run: python build_plugin.py
+
+      - name: Verify plugin ZIP
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          path = Path("Yes24.zip")
+          assert path.is_file(), "Yes24.zip was not built"
+          with ZipFile(path) as archive:
+              names = archive.namelist()
+              assert names == ["__init__.py"], names
+              source = archive.read("__init__.py").decode("utf-8")
+              compile(source, "__init__.py", "exec")
+              assert "version = (0, 4, 11)" in source
+          print("Yes24.zip structure and source compile: OK")
+          PY
