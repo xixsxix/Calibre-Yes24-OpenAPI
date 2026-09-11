@@ -8,8 +8,8 @@ An independent Calibre Desktop metadata source plugin using the official YES24 O
 
 Retrieves Korean book metadata and high-resolution covers for Calibre. This is an independent community project, not an official YES24 or Calibre plugin.
 
-현재 릴리스 후보 / Current release candidate: **0.4.12**  
-현재 공개 릴리스 / Current public release: **0.4.11**
+현재 릴리스 후보 / Current release candidate: **0.4.13**  
+현재 공개 릴리스 / Current public release: **0.4.12**
 
 ## 주요 기능 / What it does
 
@@ -106,6 +106,34 @@ Translated works use translator agreement as strong edition evidence. Series met
 
 See [METADATA_DESIGN.md](./METADATA_DESIGN.md) for the full decision rules.
 
+## 0.4.13 검증 / Validation
+
+0.4.13은 Calibre 입력의 두 번째 이후 저자가 YES24의 `원저`/공저 계열과 이미 일치하는 경우 이를 번역자로 오판하지 않도록 역할 판별을 좁게 수정합니다. 기존 번역자 판본 검증과 자동 매칭 임계값은 유지합니다.
+
+0.4.13 narrows secondary-contributor role handling so co-authors or original-work contributors are not misclassified as translators. Existing translator edition checks and global match thresholds remain unchanged.
+
+```text
+normal ISBN audit, 100 books
+- accepted: 97
+- rejected: 3
+- accepted with library ISBN: 97
+- accepted with a different ISBN: 0
+
+no-ISBN stress audit, 100 books
+- accepted: 94
+- rejected: 6
+- accepted with library ISBN: 39
+- accepted with another ISBN: 53
+
+wrong-ISBN stress audit, 20 books
+- conflict: 19 → safely recovered through title/author fallback
+- miss: 1 → safely rejected
+```
+
+Compared with 0.4.12, all checked non-timing audit fields remained unchanged across normal-100, refined no-ISBN-100, and wrong-ISBN-20. The targeted `너의 색` exact-ISBN case is newly recovered, while a deliberately wrong translator remains rejected.
+
+See [RELEASE_NOTES_0.4.13.md](./RELEASE_NOTES_0.4.13.md) for details.
+
 ## 0.4.12 검증 / Validation
 
 0.4.12는 0.4.11의 안전 정책을 유지하면서, 사용자가 짧은 본제목만 입력했을 때 YES24 후보 제목 자체에 부제가 포함되어 있어 매칭을 놓치는 경우를 좁게 수정합니다.
@@ -150,6 +178,7 @@ README.md                 installation and user-facing overview
 METADATA_DESIGN.md        matching and safety design
 RELEASE_NOTES_0.4.11.md   0.4.11 release notes
 RELEASE_NOTES_0.4.12.md   0.4.12 release notes
+RELEASE_NOTES_0.4.13.md   0.4.13 release notes
 SECURITY.md               credential and reporting guidance
 LICENSE                   GPL-3.0-only license
 ```
@@ -176,7 +205,7 @@ GNU General Public License v3.0 only. See [LICENSE](./LICENSE).
 
 ## Status
 
-**0.4.12 is the current release candidate.**
+**0.4.13 is the current release candidate.**
 
 새 변경은 기능 확장보다 실제 Calibre 사용에서 재현 가능한 사례를 우선합니다.  
 New changes should be driven by reproducible real-world Calibre cases rather than feature expansion.

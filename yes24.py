@@ -71,7 +71,7 @@ class Yes24(Source):
     name = "Yes24"
     description = "Downloads metadata and high-resolution covers from YES24"
     author = "xixsxix"
-    version = (0, 4, 12)
+    version = (0, 4, 13)
     minimum_calibre_version = (5, 0, 0)
     capabilities = frozenset({"identify", "cover"})
     touched_fields = frozenset({
@@ -1993,6 +1993,26 @@ class Yes24(Source):
         ]
 
     @classmethod
+    def _unmatched_query_secondary_authors(cls, query_authors, raw_authors):
+        if not query_authors or len(query_authors) < 2:
+            return []
+
+        candidate_primary = cls._split_authors(raw_authors)
+        unmatched = []
+        for author in query_authors[1:]:
+            author = cls._clean_text(author)
+            if not author:
+                continue
+            if (
+                candidate_primary
+                and cls._author_similarity([author], candidate_primary) >= 0.75
+            ):
+                continue
+            unmatched.append(author)
+
+        return unmatched
+
+    @classmethod
     def _secondary_contributor_similarity(cls, query_authors, raw_authors):
         if not query_authors or len(query_authors) < 2:
             return 0.0
@@ -2001,9 +2021,9 @@ class Yes24(Source):
         if not candidate_secondary:
             return 0.0
 
-        query_secondary = [
-            author for author in query_authors[1:] if cls._clean_text(author)
-        ]
+        query_secondary = cls._unmatched_query_secondary_authors(
+            query_authors, raw_authors
+        )
         if not query_secondary:
             return 0.0
 
@@ -2018,9 +2038,9 @@ class Yes24(Source):
         if not candidate_secondary:
             return False
 
-        query_secondary = [
-            author for author in query_authors[1:] if cls._clean_text(author)
-        ]
+        query_secondary = cls._unmatched_query_secondary_authors(
+            query_authors, raw_authors
+        )
         if not query_secondary:
             return False
 
