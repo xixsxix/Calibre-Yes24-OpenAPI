@@ -6,7 +6,7 @@ An independent Calibre Desktop metadata source plugin using the official YES24 O
 
 한국 도서의 제목, 저자, ISBN, 출판사, 발행일, 책소개, 태그, 언어, 시리즈와 고해상도 표지를 Calibre로 가져옵니다. 이 프로젝트는 YES24 또는 Calibre의 공식 플러그인이 아니며, 두 프로젝트와 제휴·승인 관계를 주장하지 않습니다.
 
-현재 릴리스 후보 / Current release candidate: **0.5.0**
+현재 공개 릴리스 / Current public release: **0.5.0**
 
 ## 0.5.0의 핵심 / What's new
 
