@@ -8,8 +8,7 @@ An independent Calibre Desktop metadata source plugin using the official YES24 O
 
 Retrieves Korean book metadata and high-resolution covers for Calibre. This is an independent community project, not an official YES24 or Calibre plugin.
 
-현재 릴리스 후보 / Current release candidate: **0.4.13**  
-현재 공개 릴리스 / Current public release: **0.4.12**
+현재 공개 릴리스 / Current public release: **0.4.13**
 
 ## 주요 기능 / What it does
 
@@ -205,7 +204,7 @@ GNU General Public License v3.0 only. See [LICENSE](./LICENSE).
 
 ## Status
 
-**0.4.13 is the current release candidate.**
+**0.4.13 is the current public release.**
 
 새 변경은 기능 확장보다 실제 Calibre 사용에서 재현 가능한 사례를 우선합니다.  
 New changes should be driven by reproducible real-world Calibre cases rather than feature expansion.
