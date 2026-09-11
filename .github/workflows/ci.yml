@@ -17,6 +17,34 @@ jobs:
       - name: Compile sources
         run: python -m py_compile yes24.py build_plugin.py
 
+      - name: Verify 0.5.0 behavior markers
+        run: |
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          source = Path('yes24.py').read_text(encoding='utf-8')
+          tree = ast.parse(source)
+          cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == 'Yes24')
+          funcs = {n.name: n for n in cls.body if isinstance(n, ast.FunctionDef)}
+
+          identify = ast.get_source_segment(source, funcs['identify'])
+          rank = ast.get_source_segment(source, funcs['_rank_and_filter'])
+          metrics = ast.get_source_segment(source, funcs['_candidate_metrics'])
+          cover = ast.get_source_segment(source, funcs['download_cover'])
+
+          assert 'version = (0, 5, 0)' in source
+          assert 'MAX_IDENTIFY_RESULTS = 10' in source
+          assert 'search_items.extend(' in identify
+          assert '_top_candidate_is_safe(' not in identify
+          assert 'results[:MAX_IDENTIFY_RESULTS]' in identify
+          assert '_prefer_ebook_within_same_work(' not in rank
+          assert 'score -= min(source_order' not in metrics
+          assert 'YES24 selected-candidate cover cache hit' in cover
+          assert cover.index('cached = self.get_cached_cover_url') < cover.index('item = None')
+          print('YES24 0.5.0 behavior contract: OK')
+          PY
+
       - name: Build plugin ZIP
         run: python build_plugin.py
 
@@ -26,13 +54,15 @@ jobs:
           from pathlib import Path
           from zipfile import ZipFile
 
-          path = Path("Yes24.zip")
-          assert path.is_file(), "Yes24.zip was not built"
+          path = Path('Yes24.zip')
+          assert path.is_file(), 'Yes24.zip was not built'
           with ZipFile(path) as archive:
               names = archive.namelist()
-              assert names == ["__init__.py"], names
-              source = archive.read("__init__.py").decode("utf-8")
-              compile(source, "__init__.py", "exec")
-              assert "version = (0, 4, 13)" in source
-          print("Yes24.zip structure and source compile: OK")
+              assert names == ['__init__.py'], names
+              source = archive.read('__init__.py').decode('utf-8')
+              compile(source, '__init__.py', 'exec')
+              assert 'version = (0, 5, 0)' in source
+              assert 'MAX_IDENTIFY_RESULTS = 10' in source
+              assert 'YES24 selected-candidate cover cache hit' in source
+          print('Yes24.zip structure and source compile: OK')
           PY

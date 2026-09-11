@@ -4,69 +4,66 @@
 
 An independent Calibre Desktop metadata source plugin using the official YES24 Open API.
 
-한국 도서 메타데이터와 고해상도 표지를 Calibre로 가져옵니다. 이 프로젝트는 YES24 또는 Calibre의 공식 플러그인이 아니며, 2026 YES24 Open API를 기반으로 독립 구현되었습니다.
+한국 도서의 제목, 저자, ISBN, 출판사, 발행일, 책소개, 태그, 언어, 시리즈와 고해상도 표지를 Calibre로 가져옵니다. 이 프로젝트는 YES24 또는 Calibre의 공식 플러그인이 아니며, 두 프로젝트와 제휴·승인 관계를 주장하지 않습니다.
 
-Retrieves Korean book metadata and high-resolution covers for Calibre. This is an independent community project, not an official YES24 or Calibre plugin.
+현재 릴리스 후보 / Current release candidate: **0.5.0**
 
-현재 공개 릴리스 / Current public release: **0.4.13**
+## 0.5.0의 핵심 / What's new
 
-## 주요 기능 / What it does
+0.5.0부터 ISBN이 없는 **낱권 검색**에서는 플러그인이 하나의 판본을 임의로 확정하지 않습니다. 관련 YES24 후보를 모아 서지 유사성 점수가 높은 순서대로 최대 10개를 Calibre에 반환하고, 사용자가 원하는 판본을 선택합니다.
 
-- title / subtitle-aware search
-- author-aware candidate ranking
-- ISBN-13 direct lookup
-- conservative fallback when an ISBN is missing or wrong
-- print / eBook edition awareness
-- translator and secondary-contributor checks for translated works
-- publisher-aware same-work donor logic
-- series and conservative `series_index` recovery
-- filtering of YES24 marketing/curation groups such as `소개도서` / `추천도서`
-- Comments fallback with TOC-like text rejection
-- high-resolution `/XL` cover download
+```text
+제목/저자 검색
+→ 관련 YES24 후보 수집
+→ 구매/대여 중복 제거
+→ 제목·저자·ISBN·기여자 근거로 점수 계산
+→ 높은 점수부터 후보 표시
+→ 사용자가 최종 판본 선택
+```
 
-설계 원칙은 보수적입니다.
+정확한 ISBN이 있고 제목/저자와 호환되면 이미 판본이 특정되므로 해당 도서를 한 건으로 반환합니다.
 
-> **잘못된 책이나 판본을 확신해서 적용하는 것보다 결과를 비워 두는 편이 낫습니다.**  
-> **A missing result is better than confidently applying the wrong book or edition.**
+## 주요 기능 / Features
+
+- YES24 공식 Open API 기반 검색
+- ISBN-13 직접 조회
+- ISBN이 없거나 저장 ISBN이 맞지 않을 때 제목/저자 후보 검색
+- 제목/부제 구조를 고려한 검색과 유사도 랭킹
+- 번역자 및 보조 기여자를 이용한 판본 구분
+- 종이책/eBook, 구판/신판, 시즌/권차 후보 비교
+- YES24 `seriesName` 기반 Calibre 시리즈 저장
+- 확실한 근거가 있을 때만 `series_index` 저장
+- `소개도서`/`추천도서` 같은 마케팅성 series 제외
+- API 책소개 우선, 호환 판본 donor와 제한적 HTML fallback
+- 목차 형태의 텍스트를 Comments로 잘못 저장하지 않도록 검사
+- YES24 고해상도 `/XL` 표지
+- 사용자가 선택한 후보의 ISBN에 연결된 정확한 표지 사용
 
 ## 요구 사항 / Requirements
 
 - Calibre 5.0 or later
 - YES24 Open API key from `developers.yes24.com`
-- network access to the YES24 Open API and YES24 product pages used by narrow fallbacks
+- YES24 Open API 및 필요한 YES24 상품 페이지에 대한 네트워크 접근
 
 ## 설치 / Installation
 
-### GitHub Release에서 설치 / From a GitHub Release
-
-일반 사용자는 **Releases에서 `Yes24.zip`을 다운로드**해 설치하세요. GitHub가 자동 생성하는 **`Source code (zip)`은 Calibre 설치 파일이 아닙니다.**
-
-For normal installation, download **`Yes24.zip` from Releases**. The GitHub-generated **`Source code (zip)` archive is not the Calibre plugin ZIP.**
+일반 사용자는 GitHub **Releases의 `Yes24.zip`**을 설치하세요. GitHub가 자동 생성하는 `Source code (zip)`은 Calibre 설치 파일이 아닙니다.
 
 ```text
 Preferences
 → Plugins
 → Load plugin from file
-→ select Yes24.zip
+→ Yes24.zip 선택
 ```
 
-설치 후 Calibre를 다시 시작하세요. / Restart Calibre after installation.
-
-### 소스에서 빌드 / Build from source
+소스에서 직접 빌드하려면:
 
 ```powershell
 python .\build_plugin.py
-```
-
-This creates `Yes24.zip`. You can install it from the command line with:
-
-```powershell
 calibre-customize.exe -a .\Yes24.zip
 ```
 
-## YES24 API key 설정 / Configure the API key
-
-Calibre에서:
+## YES24 API key 설정 / Configure API key
 
 ```text
 Preferences
@@ -74,137 +71,95 @@ Preferences
 → Metadata source plugins
 → Yes24
 → Customize plugin
-→ enter your YES24 API key
+→ YES24 API key 입력
 ```
 
-API key는 Calibre 플러그인 설정에 저장됩니다. Git에 커밋하거나 버그 리포트에 포함하지 마세요.
+API key는 공개 저장소, 로그, 버그 리포트에 포함하지 마세요.
 
-The key is stored through Calibre's plugin preferences. Do not commit API keys to Git or include them in bug reports.
+## 검색 결과 선택 / Choosing a result
 
-## 매칭 안전 정책 / Matching safety
+ISBN이 없는 검색에서는 후보 #1이 가장 높은 서지 유사성 점수를 가진 결과입니다. #2, #3 이후도 관련 후보이며, 출간연도·권차·종이책/eBook·개정판 차이를 보고 사용자가 선택할 수 있습니다.
+
+명백한 권차 충돌이나 확인된 번역자 충돌처럼 강한 오답 근거가 있는 후보는 목록에서 제외할 수 있습니다.
+
+Calibre 자체가 같은 메타데이터 소스에서 **제목과 저자가 완전히 같은 결과를 병합**할 수 있으므로, 제목·저자가 완전히 동일한 서로 다른 판본은 일부 합쳐져 보일 수 있습니다.
+
+## 표지 / Covers
+
+YES24 표지는 다음 고해상도 경로를 우선 사용합니다.
 
 ```text
-exact ISBN found
-→ use that edition when title/author are compatible
-
-supplied ISBN resolves to a different book
-→ positive evidence that the stored ISBN may be wrong
-→ title/author fallback may recover the correct work
-
-supplied ISBN is not found at all
-→ title/author search may run diagnostically
-→ a different-ISBN edition is NOT applied automatically
-
-no ISBN supplied
-→ title/author matching is used conservatively
+https://image.yes24.com/goods/{itemId}/XL
 ```
 
-번역서는 번역자 일치를 강한 판본 증거로 사용합니다. 시리즈 정보는 강하게 호환되는 동일 작품 판본에서만 상속할 수 있으며 이미 선택된 winner를 바꾸지 않습니다.
+identify 단계에서 각 후보의 ISBN과 정확한 YES24 표지 URL을 연결해 캐시합니다. 사용자가 후보를 선택하면 Calibre가 그 후보의 ISBN을 표지 단계로 전달하고, 플러그인은 해당 ISBN의 캐시된 표지를 먼저 사용합니다. 따라서 여러 후보 중 어느 책을 골라도 선택한 판본의 표지가 따라옵니다.
 
-Translated works use translator agreement as strong edition evidence. Series metadata can be inherited only from a strongly compatible same-work edition and never changes the already selected winner.
+캐시에 표지가 없는 경우에만 ISBN 상세조회와 제목/저자 검색을 fallback으로 사용합니다.
 
-See [METADATA_DESIGN.md](./METADATA_DESIGN.md) for the full decision rules.
+## 시리즈 / Series
 
-## 0.4.13 검증 / Validation
+YES24 `seriesId`는 권 번호가 아니라 시리즈 자체의 식별자입니다. 따라서 `seriesId` 값을 `series_index`로 직접 저장하지 않습니다.
 
-0.4.13은 Calibre 입력의 두 번째 이후 저자가 YES24의 `원저`/공저 계열과 이미 일치하는 경우 이를 번역자로 오판하지 않도록 역할 판별을 좁게 수정합니다. 기존 번역자 판본 검증과 자동 매칭 임계값은 유지합니다.
+권차는 제목, 공식 시리즈 페이지, 정확한 상품 페이지의 공식 시리즈 라벨처럼 직접적인 근거가 있을 때만 저장합니다. YES24 데이터에 특정 권차가 없으면 시리즈명만 저장될 수 있으며, 플러그인이 번호를 임의로 만들어내지 않습니다.
 
-0.4.13 narrows secondary-contributor role handling so co-authors or original-work contributors are not misclassified as translators. Existing translator edition checks and global match thresholds remain unchanged.
+## 태그 / Tags
+
+태그는 YES24 상품 분류를 기반으로 만듭니다. `도서`, `국내도서`, `외국도서`, `eBook`처럼 지나치게 넓은 container label은 제거합니다. eBook 상품에는 현재 `전자책` 태그가 추가될 수 있습니다.
+
+## 저장 필드 / Fields
 
 ```text
-normal ISBN audit, 100 books
-- accepted: 97
-- rejected: 3
-- accepted with library ISBN: 97
-- accepted with a different ISBN: 0
-
-no-ISBN stress audit, 100 books
-- accepted: 94
-- rejected: 6
-- accepted with library ISBN: 39
-- accepted with another ISBN: 53
-
-wrong-ISBN stress audit, 20 books
-- conflict: 19 → safely recovered through title/author fallback
-- miss: 1 → safely rejected
+title
+authors
+identifier:isbn
+publisher
+pubdate
+comments
+tags
+languages
+series
+series_index
+Cover
 ```
 
-Compared with 0.4.12, all checked non-timing audit fields remained unchanged across normal-100, refined no-ISBN-100, and wrong-ISBN-20. The targeted `너의 색` exact-ISBN case is newly recovered, while a deliberately wrong translator remains rejected.
+자세한 매칭·시리즈·표지 보완 규칙은 [METADATA_DESIGN.md](./METADATA_DESIGN.md)를 참고하세요.
 
-See [RELEASE_NOTES_0.4.13.md](./RELEASE_NOTES_0.4.13.md) for details.
+## 버그 리포트 / Bug reports
 
-## 0.4.12 검증 / Validation
-
-0.4.12는 0.4.11의 안전 정책을 유지하면서, 사용자가 짧은 본제목만 입력했을 때 YES24 후보 제목 자체에 부제가 포함되어 있어 매칭을 놓치는 경우를 좁게 수정합니다.
-
-The 0.4.12 candidate keeps the 0.4.11 safety policy and adds a narrow candidate-side subtitle fix.
+가능하면 다음 정보를 함께 보내주세요.
 
 ```text
-normal ISBN audit, 100 books
-- accepted: 97
-- rejected: 3
-- accepted with library ISBN: 97
-- accepted with a different ISBN: 0
-- miss → accepted: 0
-- TOC-like Comments: 0
-- marketing/recommendation series: 0
-
-no-ISBN stress audit, 100 books
-- accepted: 94
-- rejected: 6
-- accepted with library ISBN: 39
-- accepted with another ISBN: 53
-- TOC-like Comments: 0
-- marketing/recommendation series: 0
-
-wrong-ISBN stress audit, 20 books
-- conflict: 19 → safely recovered through title/author fallback
-- miss: 1 → safely rejected
+제목 / title
+저자 / author
+ISBN (있는 경우)
+실제 Calibre 결과
+잘못되었다고 생각하는 부분
+--verbose 로그
 ```
 
-표적 회귀에서는 `질투라는 감옥` / `야마모토 케이`가 ISBN 없이 정상 검색되며, 의도적으로 잘못 넣은 부제는 계속 거절됩니다. 첫 수정안에서 생겼던 `화폐전쟁 1~4` 회귀도 refined patch에서 복구했습니다.
+재현 예:
 
-See [RELEASE_NOTES_0.4.12.md](./RELEASE_NOTES_0.4.12.md) for details. The released 0.4.11 history remains in [RELEASE_NOTES_0.4.11.md](./RELEASE_NOTES_0.4.11.md).
-
-## 저장소 범위 / Repository scope
-
-이 공개 저장소는 의도적으로 작게 유지합니다.
-
-```text
-yes24.py                 Calibre Metadata Source plugin
-build_plugin.py           builds the installable Yes24.zip
-README.md                 installation and user-facing overview
-METADATA_DESIGN.md        matching and safety design
-RELEASE_NOTES_0.4.11.md   0.4.11 release notes
-RELEASE_NOTES_0.4.12.md   0.4.12 release notes
-RELEASE_NOTES_0.4.13.md   0.4.13 release notes
-SECURITY.md               credential and reporting guidance
-LICENSE                   GPL-3.0-only license
+```powershell
+& "C:\Program Files\Calibre2\fetch-ebook-metadata.exe" `
+  --allowed-plugin Yes24 `
+  --title "책 제목" `
+  --authors "저자명" `
+  --isbn "ISBN" `
+  --verbose
 ```
 
-Bulk-audit scripts, captured API responses, local Calibre databases, and generated CSV reports are private development-lab material and are intentionally not published here. Captured YES24 API response fixtures are not redistributed.
+ISBN이 없는 사례는 `--isbn` 옵션을 빼면 됩니다.
 
-## 보안 / Security
+## 데이터 및 보안 / Data & security
 
-YES24 API key를 공개하지 마세요. 로그를 첨부할 때는 인증정보와 불필요한 개인 경로를 제거하세요.
+이 공개 저장소에는 캡처한 YES24 API 원문 응답 fixture를 배포하지 않으며 YES24 API key도 저장하지 않습니다. API 데이터의 사용 조건은 YES24 개발자 정책을 확인하세요.
 
-Never publish your YES24 API key. If a bug report needs logs, remove credentials and unrelated personal paths first.
+See [SECURITY.md](./SECURITY.md) for credential and reporting guidance.
 
-See [SECURITY.md](./SECURITY.md).
+## Related projects
 
-## 관련 프로젝트 / Related projects
-
-YES24 integrations for Calibre existed before this project, including older Calibre Desktop metadata plugins and newer cover-only or Calibre-Web integrations. Those projects largely rely on YES24 HTML scraping or predate the 2026 official Open API.
-
-This repository is an **independent implementation** designed around the official YES24 Open API, conservative edition matching, and current Calibre Desktop metadata-source behavior.
+YES24를 사용하는 기존 Calibre 프로젝트들이 있으며, 일부는 HTML scraping 기반이거나 표지 다운로드에 초점을 둡니다. 이 저장소는 2026 YES24 공식 Open API를 중심으로 독립 구현되었습니다.
 
 ## License
 
 GNU General Public License v3.0 only. See [LICENSE](./LICENSE).
-
-## Status
-
-**0.4.13 is the current public release.**
-
-새 변경은 기능 확장보다 실제 Calibre 사용에서 재현 가능한 사례를 우선합니다.  
-New changes should be driven by reproducible real-world Calibre cases rather than feature expansion.

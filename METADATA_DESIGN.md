@@ -1,332 +1,149 @@
 # YES24 Metadata Matching Design
 
-This document describes the safety model used by the Calibre YES24 Metadata Plugin.
+현재 구현: **0.5.0**
 
-Current implementation: **0.4.11**
+이 문서는 YES24 Open API에서 **낱권 메타데이터 후보**를 수집하고, Calibre 사용자가 원하는 판본을 선택할 수 있도록 점수순으로 제시하는 규칙을 설명합니다.
 
-## Design principle
+## 핵심 원칙
 
-The plugin is optimized for automatic metadata updates in real Calibre libraries. The priority order is:
+> **플러그인은 관련 후보를 수집하고 일관된 순서로 정렬한다. 최종 판본 선택은 사용자에게 맡긴다.**
 
-```text
-wrong automatic update prevention
-> edition accuracy
-> series/index accuracy
-> collection rate
-> speed
-```
+정확 ISBN처럼 판본이 이미 특정된 경우는 한 건으로 끝낼 수 있습니다. ISBN이 없거나 저장 ISBN이 다른 책을 가리키거나 YES24에서 찾히지 않는 경우에는 제목/저자 검색으로 관련 후보를 모아 최대 10개를 반환합니다.
 
-In other words:
+## 데이터 소스
 
-> **A missing result is preferable to a confidently wrong result.**
-
-## Data sources
-
-The normal lookup path uses the official YES24 Open API:
+기본 데이터는 YES24 공식 Open API를 사용합니다.
 
 ```text
 GET /v1/goods/itemDetail
 GET /v1/goods/itemList
 ```
 
-HTML is used only for narrow enrichment paths that the Open API does not always expose consistently, such as selected series-index evidence or a final description fallback.
+HTML은 Open API에 항상 존재하지 않는 `series_index` 근거나 최종 책소개 fallback처럼 좁은 보완 경로에만 사용합니다.
 
-High-resolution covers use the YES24 goods image URL for the selected item.
+## 후보 수집과 순위
 
-## Query inputs
+검색 입력은 Calibre의 `title`, `authors`, `identifiers`입니다. 로컬 EPUB/PDF 형식은 metadata-source `identify()`에 신뢰 가능한 판본 신호로 전달되지 않습니다.
 
-Calibre's metadata-source `identify()` supplies bibliographic inputs such as:
-
-```text
-title
-authors
-identifiers (including ISBN)
-```
-
-It does not reliably provide the local EPUB/PDF format as an edition-selection signal, so this plugin does not claim to infer an edition from the local file format.
-
-## Title and subtitle handling
-
-Calibre libraries often store a title and subtitle in a single string while YES24 can expose them separately.
-
-Example:
-
-```text
-Calibre
-AI 최강의 수업 - KAIST 김진형 교수에게 듣는
-
-YES24
-title    = AI 최강의 수업
-subTitle = KAIST 김진형 교수에게 듣는
-```
-
-The plugin therefore separates **search normalization** from **automatic-application validation**.
-
-```text
-normalize likely main title
-→ search broadly
-→ compare original full title against YES24 title + subtitle
-→ combine title evidence with author/contributor evidence
-```
-
-Common subtitle separators include spaced dashes, pipes, colons, and trailing parenthetical descriptors. Hyphens inside normal words such as `K-콘텐츠` are not treated as subtitle separators.
-
-## Edition descriptors
-
-Clear edition suffixes such as `개정판`, `최신개정판`, `완역본`, or similar parenthetical markers may be removed for **work identity comparison**.
-
-They are not removed from the final YES24 title written to Calibre.
-
-## Candidate ranking
-
-Each candidate is scored using evidence such as:
+후보 점수에는 다음 근거를 사용합니다.
 
 ```text
 exact ISBN
-title similarity
-structured main-title agreement
-work-title identity
-author similarity
-translator/secondary-contributor similarity
-sequence conflict
-subtitle conflict
-print/eBook relationship
-YES24 result order
+전체 제목 exact / 유사도
+메인 제목 exact / 유사도
+YES24 title + subTitle 유사도
+판본 문구를 정규화한 작품 제목 일치
+저자 유사도
+번역자 등 보조 기여자 일치
+권차 충돌
+부제 충돌
 ```
 
-Exact ISBN is intentionally dominant, but it still requires basic bibliographic compatibility so a corrupt or mismapped ISBN response is not blindly trusted.
+YES24 검색 결과의 원래 순서는 숫자 점수에 섞지 않고, 서지 점수가 같을 때만 안정적인 최종 tie-break로 사용합니다.
 
-## ISBN states
+명백한 권차 충돌과 확인된 번역자 충돌은 높은 제목 유사도보다 강한 반증으로 보고 후보에서 제외할 수 있습니다.
 
-The most important safety distinction is between **conflict** and **miss**.
+## ISBN
 
-### Exact/direct
-
-The supplied ISBN resolves to a compatible YES24 item.
+### 정확 ISBN
 
 ```text
-exact ISBN + compatible title/author
-→ accept
+ISBN13 상세 조회
+→ ISBN 일치
+→ 제목/저자와 호환
+→ 해당 판본 한 건 반환
 ```
 
-### Conflict
+### ISBN conflict / miss
 
-YES24 resolves the supplied ISBN, but the returned item is bibliographically different from the requested book.
+저장 ISBN이 다른 책을 가리키거나 YES24에서 찾히지 않으면 제목/저자 검색으로 관련 후보를 제시합니다. 0.5.0의 목적은 플러그인이 다른 판본을 자동 확정하는 것이 아니라, 사용자가 후보를 보고 선택할 수 있게 하는 것입니다.
 
-This is positive evidence that the stored ISBN may be wrong.
+## 제목과 부제
+
+Calibre에는 제목과 부제가 하나의 `title` 문자열로 들어오는 경우가 많고 YES24는 `title`과 `subTitle`을 분리할 수 있습니다.
 
 ```text
-ISBN resolves to another book
-→ title/author search may recover the requested work
-→ replacement ISBN is allowed only after normal safety checks
+Calibre: AI 최강의 수업 - KAIST 김진형 교수에게 듣는
+YES24 title: AI 최강의 수업
+YES24 subTitle: KAIST 김진형 교수에게 듣는
 ```
 
-### Miss
+검색 단계에서는 구조화된 메인 제목을 활용하고, 랭킹에서는 원래 전체 제목과 YES24 제목/부제를 함께 비교합니다. `K-콘텐츠`, `COVID-19` 같은 단어 내부 하이픈은 부제 구분자로 처리하지 않습니다.
 
-YES24 cannot resolve the supplied ISBN at all.
+`개정판`, `최신개정판`, `완역본`, `리커버판` 같은 명확한 판본 문구는 작품 동일성 비교에서만 정규화하며 실제 반환 제목은 YES24 상품 제목을 유지합니다.
 
-The ISBN may still be a real edition that is missing from the current YES24 catalogue. A title match to another edition is therefore not enough evidence to overwrite it.
+## 저자와 기여자
+
+YES24 저자 문자열에는 저자, 원저자, 번역자, 그림, 감수 등의 역할이 함께 들어올 수 있습니다.
+
+주저자 일치는 작품 동일성의 핵심 근거입니다. `역`, `옮김`, `번역` 역할의 기여자는 번역본 판본 구분에 강한 근거로 사용합니다. 반면 `원저`나 공저 성격의 기여자를 번역자로 오인하지 않도록 역할을 구분합니다.
+
+Calibre `authors`에는 실제 저자 계열만 저장하며 번역자를 임의로 섞지 않습니다.
+
+## 중복 상품
+
+YES24는 같은 eBook을 구매/대여 상품으로 서로 다른 `itemId`로 반환할 수 있습니다. 유효 ISBN과 매체 유형이 같으면 같은 서지 판본으로 보고 후보 목록에서 중복 제거합니다.
+
+## 종이책 / eBook
+
+0.5.0 identify 목록에서는 특정 매체를 점수와 무관하게 앞쪽으로 끌어올리는 후처리를 하지 않습니다. 제목·저자·ISBN·기여자 근거에 따른 점수순을 그대로 보여줍니다.
+
+## Calibre 결과 순서
+
+각 `Metadata` 결과에 `source_relevance = 0, 1, 2...`를 설정하고 `identify_results_keygen()`을 구현해 YES24 내부 랭킹을 유지합니다.
+
+Calibre는 이후 같은 메타데이터 소스에서 제목과 저자가 완전히 동일한 결과를 병합할 수 있습니다. 따라서 서로 다른 ISBN/연도라도 제목과 저자가 완전히 같은 판본은 UI에서 합쳐질 수 있습니다.
+
+## 시리즈
+
+YES24 `seriesName`은 Calibre `series` 후보로 사용할 수 있습니다. `소개도서`, `추천도서` 같은 프로모션/큐레이션 이름은 bibliographic series가 아니므로 제외합니다.
+
+`seriesId`는 시리즈 자체의 ID이며 권차가 아닙니다. `series_index`는 다음과 같은 직접 근거가 있을 때만 저장합니다.
 
 ```text
-ISBN lookup miss
-→ title/author search may run diagnostically
-→ if only a different-ISBN candidate is found, reject automatic application
+1. 선택된 YES24 제목의 명확한 권차
+2. 원래 Calibre 제목의 명확한 권차
+3. 제목과 시리즈명이 충분히 가까운 경우의 제한적 말미 번호
+4. 공식 YES24 시리즈 페이지의 상품-권차 대응
+5. 정확한 상품 페이지의 공식 시리즈 라벨
 ```
 
-This rule prevents silent print/eBook edition replacement when YES24 coverage is incomplete.
+근거가 부족하면 시리즈명만 저장하고 권차는 확정하지 않습니다. 서점 데이터에 특정 권차가 없으면 플러그인이 임의로 만들어내지 않습니다.
 
-### None
+### 동일 작품 donor
 
-No ISBN was supplied.
+선택된 eBook 후보 자체에 시리즈가 없더라도 제목·저자·출판사·보조 기여자가 강하게 호환되는 다른 판본에 공식 시리즈 정보가 있으면 그 값을 donor로 사용할 수 있습니다. donor는 최종 도서 선택을 바꾸지 않고 비어 있는 시리즈 필드를 보완하는 용도로만 사용합니다.
 
-The plugin falls back to conservative title/author matching. In this mode, selecting another valid edition ISBN is not itself an error because no ISBN anchor existed.
+## Comments
 
-## Author and translator handling
-
-YES24 contributor strings can contain authors, translators, illustrators, editors, and other roles.
-
-Primary author agreement is used for work identity. Translation roles such as:
+책소개는 다음 순서로 보완합니다.
 
 ```text
-역
-옮김
-번역
+YES24 API bookIntroduction
+→ 강하게 호환되는 동일 작품 판본의 description donor
+→ 제한적인 상품 페이지 HTML fallback
 ```
 
-are used as strong **edition evidence**.
+eBook 데이터에서 소개와 목차가 뒤바뀌는 사례를 방어하기 위해 반복적인 장/절/번호 구조를 가진 목차형 텍스트는 Comments 후보에서 제외합니다.
 
-For a translated work, a translator mismatch can outweigh an otherwise strong title match.
+## Tags와 언어
 
-The plugin does not intentionally write translators into Calibre's `authors` field. Some upstream author-string representation edge cases remain known non-blocking cleanup work.
+태그는 YES24 상품 분류를 기반으로 만들고 `도서`, `국내도서`, `외국도서`, `eBook`처럼 너무 넓은 container label은 제거합니다. eBook 상품에는 현재 `전자책` 태그를 추가할 수 있습니다.
 
-## print / eBook selection
+언어는 국내도서/eBook 분류와 한글이 포함된 서지 필드를 바탕으로 보수적으로 추론합니다.
 
-The plugin identifies eBook items from YES24 goods-type/category fields.
+## 표지
 
-There is no blanket global eBook score bonus. A global bonus could cause an unrelated translation or publisher edition to outrank the bibliographically correct print edition.
-
-Instead, eBook preference is relational:
-
-```text
-same work
-+ compatible publisher
-+ compatible secondary contributors
-+ one candidate print and one candidate eBook
-→ eBook may win the tie
-```
-
-## Duplicate products
-
-YES24 may expose purchase and rental products as different item IDs while they represent the same bibliographic edition.
-
-Candidates with the same valid ISBN and media type are deduplicated before final ranking.
-
-## Final-result policy
-
-The plugin returns only the single winner that has already passed the safety decision.
-
-```text
-search
-→ rank
-→ validate
-→ enrich the fixed winner
-→ return one result
-```
-
-This prevents Calibre's generic same-source sorter from changing the intended final edition order.
-
-## Series policy
-
-YES24 `seriesId` identifies a series; it is **not** a volume number and must never be written directly as `series_index`.
-
-The plugin can use `seriesName` as Calibre `series`, subject to filtering and compatibility checks.
-
-### Promotional/curation filtering
-
-YES24 can expose marketing/editorial collections through series-shaped data. Examples found in real data include labels containing `소개도서` or `추천도서`.
-
-Those are not bibliographic publication series and are excluded in 0.4.11.
-
-Real series such as publication classics, world-literature lines, poetry series, etc. continue through the normal series logic.
-
-## Series donor logic
-
-An accepted item may have no series data even when another edition of the same work does.
-
-Series data may be inherited only when the donor is strongly compatible:
-
-```text
-same normalized work title
-+ compatible primary author
-+ compatible publisher
-+ no known translator/secondary-contributor conflict
-```
-
-The donor never changes the already selected winner.
-
-## series_index evidence
-
-The index is written only when there is positive evidence. Resolution order is roughly:
-
-```text
-1. explicit sequence in the selected YES24 title
-2. explicit sequence in the original Calibre title
-3. conservative terminal-number inference when title and series are strongly related
-4. official YES24 series page mapping
-5. exact current/donor product-page series badge
-6. otherwise leave the index unset
-```
-
-Plain numbers that look like years or implausibly large unmarked values are rejected from heuristic inference.
-
-If the evidence is ambiguous, the plugin stores the series name without inventing an index.
-
-## Description / Comments policy
-
-YES24 API data for some eBook entries has shown introduction/TOC inconsistencies. The plugin therefore validates description candidates before writing Calibre Comments.
-
-```text
-normal API introduction
-→ use it
-
-missing/short/TOC-like introduction
-→ try compatible same-work description donor
-
-still unavailable
-→ narrow HTML fallback
-
-TOC-like text
-→ reject
-```
-
-TOC detection is conservative and requires repeated structural markers rather than a single occurrence of words such as chapter/section.
-
-## Tags and language
-
-Tags are derived primarily from YES24 goods/category labels, excluding broad container labels such as simply `도서`, `국내도서`, `외국도서`, or `eBook`.
-
-An eBook marker may be added for eBook items.
-
-Korean language is inferred conservatively from domestic-book/eBook classification and Hangul-bearing bibliographic fields. Foreign-book classification is not blindly forced to Korean.
-
-## Cover policy
-
-For a selected YES24 item, the plugin prefers:
+후보별로 YES24 `itemId`가 이미 알려져 있으므로 고해상도 표지는 다음 경로를 우선합니다.
 
 ```text
 https://image.yes24.com/goods/{itemId}/XL
 ```
 
-The cover path follows the same bibliographic selection logic as metadata lookup rather than independently selecting an arbitrary search result.
+identify 단계에서 각 후보의 ISBN에 정확한 XL 표지 URL을 캐시합니다. Calibre에서 사용자가 후보를 고른 뒤 cover 단계로 넘어가면 선택한 후보의 `identifiers`가 전달되므로, 플러그인은 그 ISBN의 캐시를 먼저 사용합니다.
 
-## Logging
+이 경로에서는 처음 검색에 사용한 제목을 다시 판본 판단에 사용하지 않습니다. 캐시가 없는 경우에만 ISBN 상세조회와 제목/저자 fallback을 사용합니다.
 
-Verbose logs expose the evidence needed to audit a decision, including candidate score components and important branch outcomes such as:
+## 로그
 
-```text
-YES24 ISBN direct match accepted
-YES24 ISBN points to a bibliographically different item
-YES24 ISBN lookup missed
-YES24 automatic match accepted
-YES24 automatic match rejected
-YES24 series inherited from compatible same-work edition
-YES24 description inherited from compatible same-work edition
-```
-
-No API key should be written to logs.
-
-## Release-gate examples
-
-The following are release blockers:
-
-```text
-a different work is automatically applied
-an unresolved ISBN is silently replaced with another edition
-a known translator mismatch is automatically accepted
-marketing/recommendation collections become bibliographic series/index values
-obvious table-of-contents text is written as Comments
-media classification changes selection incorrectly
-```
-
-The following are usually non-blocking unless they systematically change identity:
-
-```text
-minor name spelling variants
-role suffix representation differences
-missing optional metadata when safe evidence is unavailable
-```
-
-## 0.4.11 validation status
-
-0.4.11 passed:
-
-- 100-book normal-ISBN audit
-- 100-book no-ISBN stress audit
-- 20-book wrong-ISBN stress audit
-- targeted series regressions
-- targeted ISBN-miss regression
-- final installed-ZIP smoke tests
-
-No release-blocking wrong automatic application remained in the validated corpus.
-
-The functional logic is therefore frozen for the initial public release. New changes should be driven by reproducible real-world cases.
+`--verbose` 로그에는 검색 쿼리, 후보 점수 구성요소, ISBN direct/miss/conflict, 시리즈 donor, description donor, 선택 후보 cover cache hit 등의 진단 정보를 남깁니다. API key는 로그에 쓰지 않습니다.

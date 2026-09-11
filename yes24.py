@@ -20,6 +20,7 @@ ITEM_DETAIL_URL = "https://apis.yes24.com/v1/goods/itemDetail"
 SERIES_PAGE_URL = "https://www.yes24.com/product/category/series/001001"
 
 MAX_RESULTS = 6
+MAX_IDENTIFY_RESULTS = 10
 SEARCH_PAGE_SIZE = 20
 MIN_DESCRIPTION_LENGTH = 30
 # eBook preference is relational, not a blanket score bonus. A global bonus can
@@ -71,7 +72,7 @@ class Yes24(Source):
     name = "Yes24"
     description = "Downloads metadata and high-resolution covers from YES24"
     author = "xixsxix"
-    version = (0, 4, 13)
+    version = (0, 5, 0)
     minimum_calibre_version = (5, 0, 0)
     capabilities = frozenset({"identify", "cover"})
     touched_fields = frozenset({
@@ -102,6 +103,16 @@ class Yes24(Source):
     supports_gzip_transfer_encoding = True
     cached_cover_url_is_reliable = True
     prefer_results_with_isbn = False
+
+    def identify_results_keygen(self, title=None, authors=None, identifiers={}):
+        # Preserve the plugin's own bibliographic ranking when multiple YES24
+        # candidates are returned. Calibre's default same-source sorter also
+        # considers comment length/completeness and can otherwise reorder an
+        # edition that this plugin deliberately ranked lower.
+        def keygen(mi):
+            return getattr(mi, "source_relevance", MAX_IDENTIFY_RESULTS + 1)
+
+        return keygen
 
     # One Calibre worker can identify multiple books. Cache series-page scans
     # so a large collection such as 을유세계문학전집 is not fetched repeatedly.
@@ -172,8 +183,10 @@ class Yes24(Source):
         results = []
         direct_match = False
         isbn_lookup_missed = False
-        accepted_reason = None
 
+        # Exact ISBN remains the one case where the edition is already identified.
+        # Otherwise identify() is a ranked discovery surface: collect relevant
+        # YES24 candidates and let the Calibre user choose from the list.
         if requested_isbn and self._is_isbn13(requested_isbn):
             direct = self._detail_by_isbn(requested_isbn, timeout, log)
             if direct:
@@ -184,37 +197,26 @@ class Yes24(Source):
                 else:
                     log(
                         "YES24 ISBN points to a bibliographically different item; "
-                        "continuing with title/author search"
+                        "showing ranked title/author alternatives"
                     )
             else:
                 isbn_lookup_missed = True
                 log(
                     f"YES24 ISBN lookup missed: {requested_isbn}; "
-                    "continuing with title/author search"
+                    "showing ranked title/author alternatives"
                 )
 
         if not results and not abort.is_set():
+            search_items = []
             for query in self._search_queries(title, authors):
                 if abort.is_set():
                     break
-
                 log(f"YES24 search query: {query}")
-                items = self._search_api(query, timeout, log)
-                ranked = self._rank_and_filter(
-                    items, title, authors, requested_isbn
-                )
-                if not ranked:
-                    continue
+                search_items.extend(self._search_api(query, timeout, log))
 
-                results = ranked
-                accepted, reason = self._top_candidate_is_safe(
-                    results, title, authors, requested_isbn
-                )
-                if accepted:
-                    accepted_reason = reason
-                    break
-
-                log(f"YES24 query not decisive: {reason}")
+            results = self._rank_and_filter(
+                search_items, title, authors, requested_isbn
+            )
 
         if not results:
             log(
@@ -224,38 +226,16 @@ class Yes24(Source):
             return
 
         self._log_candidates(
-            results[:MAX_RESULTS], title, authors, requested_isbn, log
+            results[:MAX_IDENTIFY_RESULTS], title, authors, requested_isbn, log
         )
 
-        # A syntactically valid ISBN that YES24 cannot resolve may still be a
-        # real edition missing from the YES24 catalogue. In that situation a
-        # title/author match to a different ISBN is not enough evidence to
-        # replace the user's edition automatically. This is intentionally
-        # different from the case where YES24 resolves the supplied ISBN to a
-        # bibliographically different book: that is positive evidence that the
-        # stored ISBN is wrong, so title/author fallback remains allowed.
-        if isbn_lookup_missed and requested_isbn and not any(
-            self._metrics_for(candidate, title, authors, requested_isbn)["isbn_exact"]
-            for candidate in results
-        ):
-            log(
-                "YES24 automatic match rejected: supplied ISBN was not found; "
-                "refusing non-exact edition fallback"
-            )
-            return
-
         if not direct_match:
-            if not accepted_reason:
-                accepted, accepted_reason = self._top_candidate_is_safe(
-                    results, title, authors, requested_isbn
-                )
-                if not accepted:
-                    log(f"YES24 automatic match rejected: {accepted_reason}")
-                    return
-            log(f"YES24 automatic match accepted: {accepted_reason}")
+            suffix = " after ISBN miss" if isbn_lookup_missed else ""
+            log(
+                f"YES24 ranked candidate list prepared{suffix}: "
+                f"{min(len(results), MAX_IDENTIFY_RESULTS)} candidate(s)"
+            )
 
-        # Series data is sometimes present only on another edition. Fill only
-        # from a strongly compatible edition and never use it for winner choice.
         self._ensure_series_metadata(
             results, title, authors, abort, timeout, log
         )
@@ -269,26 +249,32 @@ class Yes24(Source):
         if abort.is_set():
             return
 
-        # The plugin has already made the safety decision. Returning only the
-        # winner prevents Calibre's generic same-source sorter from undoing the
-        # eBook preference.
-        mi = self._metadata_from_item(item)
-        if mi is None:
+        display_items = (
+            [item] if direct_match else results[:MAX_IDENTIFY_RESULTS]
+        )
+
+        emitted = 0
+        for relevance, candidate in enumerate(display_items):
+            mi = self._metadata_from_item(candidate)
+            if mi is None:
+                continue
+            mi.source_relevance = relevance
+            isbn = mi.get_identifiers().get("isbn")
+            cover_url = self._xl_cover_url(candidate)
+            if isbn and cover_url:
+                self.cache_identifier_to_cover_url(isbn, cover_url)
+            result_queue.put(mi)
+            emitted += 1
+
+        if not emitted:
             log(
                 f"YES24 identify finished with no usable metadata in "
                 f"{time.monotonic() - started:.3f}s"
             )
             return
 
-        mi.source_relevance = 0
-        isbn = mi.get_identifiers().get("isbn")
-        cover_url = self._xl_cover_url(item)
-        if isbn and cover_url:
-            self.cache_identifier_to_cover_url(isbn, cover_url)
-
-        result_queue.put(mi)
         log(
-            f"YES24 identify finished: 1 result(s), "
+            f"YES24 identify finished: {emitted} result(s), "
             f"{time.monotonic() - started:.3f}s"
         )
 
@@ -311,8 +297,15 @@ class Yes24(Source):
         clean_authors = self._clean_author_query(authors)
         requested_isbn = self._get_isbn(identifiers)
 
+        # The cover stage receives identifiers from the candidate the user selected.
+        # Trust that candidate's cached YES24 XL cover before any fresh search.
         cached = self.get_cached_cover_url(identifiers)
-        if not clean_title and cached:
+        if cached:
+            requested_label = requested_isbn or "-"
+            log(
+                "YES24 selected-candidate cover cache hit: "
+                f"isbn={requested_label}"
+            )
             if self._download_cover_url(
                 cached, result_queue, abort, timeout, log
             ):
@@ -582,12 +575,6 @@ class Yes24(Source):
         ranked.sort(key=lambda row: (-row[0], row[1]))
         results = [item for _score, _order, item in ranked]
 
-        if results and not any(
-            cls._metrics_for(item, title, authors, requested_isbn)["isbn_exact"]
-            for item in results
-        ):
-            results = cls._prefer_ebook_within_same_work(results)
-
         return results
 
     @classmethod
@@ -674,7 +661,7 @@ class Yes24(Source):
         if is_ebook and not isbn_exact:
             score += EBOOK_TIE_BREAK_BONUS
 
-        score -= min(source_order, 100) * 0.5
+        # source_order is only the final stable tie-break in _rank_and_filter.
 
         return {
             "score": score,
