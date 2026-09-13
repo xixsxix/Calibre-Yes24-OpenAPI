@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Build an installable Calibre plugin ZIP from yes24.py."""
+"""Build an installable Calibre plugin ZIP."""
 
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -9,19 +9,21 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parent
 SOURCE = ROOT / "yes24.py"
+PATCH = ROOT / "yes24_054_patch.py"
 OUTPUT = ROOT / "Yes24.zip"
 
 
 def main():
-    if not SOURCE.exists():
-        raise SystemExit(f"Source file not found: {SOURCE}")
+    missing = [path for path in (SOURCE, PATCH) if not path.is_file()]
+    if missing:
+        raise SystemExit("Source file not found: " + ", ".join(str(path) for path in missing))
 
-    source_text = SOURCE.read_text(encoding="utf-8")
-
+    combined = SOURCE.read_text(encoding="utf-8").rstrip() + "\n\n" + PATCH.read_text(encoding="utf-8").strip() + "\n"
     with ZipFile(OUTPUT, "w", compression=ZIP_DEFLATED) as archive:
-        archive.writestr("__init__.py", source_text)
+        archive.writestr("__init__.py", combined)
 
     print(f"Built: {OUTPUT}")
+    print("Runtime version: Yes24 (0, 5, 4)")
 
 
 if __name__ == "__main__":
