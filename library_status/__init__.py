@@ -11,14 +11,15 @@ class Yes24LibraryStatusPlugin(InterfaceActionBase):
     description = (
         "Record YES24 bestseller, steady-seller, and ranking history in Calibre "
         "custom columns. After Calibre starts, this plugin automatically connects "
-        "to the YES24 Open API to prefetch public ranking lists for fast automatic "
-        "status updates. It does not upload EPUB files or your library metadata."
+        "to the YES24 Open API to prefetch public ranking lists and refreshes a "
+        "local cache of product IDs exposed by the YES24 domestic steady-seller "
+        "storefront page. It does not upload EPUB files or your library metadata."
     )
     supported_platforms = ["windows", "osx", "linux"]
     author = "xixsxix"
-    version = (0, 3, 5)
+    version = (0, 3, 6)
     minimum_calibre_version = (9, 0, 0)
     actual_plugin = (
-        "calibre_plugins.yes24_library_status.ui:"
-        "Yes24LibraryStatusAction"
+        "calibre_plugins.yes24_library_status.ui_036:"
+        "Yes24LibraryStatusAction036"
     )

@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Compile Metadata Source
-        run: python -m py_compile yes24.py build_plugin.py
+        run: python -m py_compile yes24.py yes24_054_patch.py build_plugin.py test_steady_tag_054.py
 
       - name: Verify Metadata Source 0.5.3 behavior markers
         run: |
@@ -49,8 +49,11 @@ jobs:
           assert 'score -= min(source_order' not in metrics
           assert 'YES24 selected-candidate cover cache hit' in cover
           assert cover.index('cached = self.get_cached_cover_url') < cover.index('item = None')
-          print('YES24 Metadata Source 0.5.3 behavior contract: OK')
+          print('YES24 Metadata Source 0.5.3 base behavior contract: OK')
           PY
+
+      - name: Verify Metadata Source 0.5.4 steady tag contract
+        run: python test_steady_tag_054.py
 
       - name: Build Metadata Source ZIP
         run: python build_plugin.py
@@ -68,11 +71,12 @@ jobs:
               assert names == ['__init__.py'], names
               source = archive.read('__init__.py').decode('utf-8')
               compile(source, '__init__.py', 'exec')
-              assert 'version = (0, 5, 3)' in source
+              assert 'Yes24.version = (0, 5, 4)' in source
+              assert '"⭐스테디셀러"' in source
               assert '"identifier:yes24"' in source
               assert 'MAX_IDENTIFY_RESULTS = 10' in source
               assert 'YES24 selected-candidate cover cache hit' in source
-          print('Yes24.zip structure and source compile: OK')
+          print('Yes24.zip 0.5.4 structure and source compile: OK')
           PY
 
   library-status:
@@ -85,9 +89,9 @@ jobs:
         working-directory: library_status
         run: |
           python -m py_compile \
-            __init__.py ui.py client.py columns.py history.py \
+            __init__.py ui.py ui_036.py client.py columns.py history.py steady_cache.py \
             build_plugin.py test_status_core.py test_history_core.py \
-            test_public_contract.py
+            test_public_contract.py test_steady_cache.py
 
       - name: Run Library Status core tests
         working-directory: library_status
@@ -95,6 +99,7 @@ jobs:
           python test_status_core.py
           python test_history_core.py
           python test_public_contract.py
+          python test_steady_cache.py
 
       - name: Build Library Status ZIP
         working-directory: library_status
@@ -112,22 +117,28 @@ jobs:
           expected = {
               '__init__.py',
               'ui.py',
+              'ui_036.py',
               'client.py',
               'columns.py',
               'history.py',
+              'steady_cache.py',
               'plugin-import-name-yes24_library_status.txt',
           }
           with ZipFile(path) as archive:
               names = set(archive.namelist())
               assert names == expected, names
-              for name in ('__init__.py', 'ui.py', 'client.py', 'columns.py', 'history.py'):
+              for name in ('__init__.py', 'ui.py', 'ui_036.py', 'client.py', 'columns.py', 'history.py', 'steady_cache.py'):
                   source = archive.read(name).decode('utf-8')
                   compile(source, name, 'exec')
               init = archive.read('__init__.py').decode('utf-8')
               ui = archive.read('ui.py').decode('utf-8')
-              assert 'version = (0, 3, 5)' in init
-              assert 'yes24_library_status.ui:' in init
+              ui_036 = archive.read('ui_036.py').decode('utf-8')
+              steady = archive.read('steady_cache.py').decode('utf-8')
+              assert 'version = (0, 3, 6)' in init
+              assert 'yes24_library_status.ui_036:' in init
               assert 'SNAPSHOT_FRESH_TTL_SECONDS = 10 * 60' in ui
               assert 'worker_class = CachedStatusWorker' in ui
-          print('Yes24LibraryStatus.zip structure and source compile: OK')
+              assert 'steady-seller cache worker started' in ui_036
+              assert 'STEADYSELLER_URL' in steady
+          print('Yes24LibraryStatus.zip 0.3.6 structure and source compile: OK')
           PY
