@@ -6,26 +6,34 @@
 
 | 플러그인 | 버전 | 상태 | 설치 파일 |
 | --- | ---: | --- | --- |
-| YES24 Metadata Source | 0.5.3 | 공개 안정 릴리스 | `Yes24.zip` |
-| YES24 Library Status | 0.3.5 | 공개 안정 릴리스 | `Yes24LibraryStatus.zip` |
+| YES24 Metadata Source | 0.5.4 | 공개 안정 릴리스 | `Yes24.zip` |
+| YES24 Library Status | 0.3.6 | 공개 안정 릴리스 | `Yes24LibraryStatus.zip` |
 
-## 릴리스 노트 규칙
+## 2026-09-14 릴리스
 
-앞으로 새 릴리스 문서는 `docs/releases/` 아래에서 플러그인 이름이 드러나는 파일명으로 관리합니다.
+### YES24 Metadata Source 0.5.4
 
-```text
-docs/releases/
-├─ metadata-source-0.5.3.md
-└─ library-status-0.3.5.md
-```
+- Library Status 0.3.6이 만든 로컬 storefront steady-seller cache를 읽어 선택된 YES24 `itemId`가 포함되면 `⭐스테디셀러` 태그를 추가합니다.
+- 별 태그 판정을 위해 Metadata Source가 storefront HTML 요청을 추가하지 않습니다.
+- 캐시가 없거나 손상되어도 일반 메타데이터 검색은 그대로 동작합니다.
+- 공개 태그: `v0.5.4`
+- 설치 자산: `Yes24.zip`
 
-기존 Metadata Source의 루트 `RELEASE_NOTES_*.md` 파일은 기존 링크 호환성을 위해 유지합니다. 새로운 문서 구조로 옮기는 과정에서 역사적인 릴리스 노트를 삭제하거나 URL을 깨뜨리지 않습니다.
+### YES24 Library Status 0.3.6
 
-## Metadata Source
+- Calibre 시작 후 YES24 국내도서 스테디셀러 storefront를 백그라운드에서 순회합니다.
+- 고유 product `itemId` 집합을 `<Calibre config>/yes24_library_status/steady_seller.json`에 원자적으로 저장합니다.
+- 갱신 실패 시 이전 정상 캐시를 유지하고 한 차례 지연 재시도합니다.
+- 공개 태그: `library-status-v0.3.6`
+- 설치 자산: `Yes24LibraryStatus.zip`
 
-현재 공개 안정 릴리스는 **0.5.3**입니다.
+실환경 검증은 Calibre 9.14 / Windows 11 / 3,776권 라이브러리에서 수행했고, storefront cache 26페이지 / 1,028 unique product IDs 수집과 양성·음성·다권 재검색을 확인했습니다.
 
-기존 릴리스 노트:
+상세 릴리스 메모: [0.5.4 / 0.3.6](../RELEASE_NOTES_0.5.4_AND_LIBRARY_STATUS_0.3.6.md)
+
+## 이전 안정 릴리스
+
+### Metadata Source 0.5.3
 
 - [0.5.3](../RELEASE_NOTES_0.5.3.md)
 - [0.5.0](../RELEASE_NOTES_0.5.0.md)
@@ -33,12 +41,12 @@ docs/releases/
 - [0.4.12](../RELEASE_NOTES_0.4.12.md)
 - [0.4.11](../RELEASE_NOTES_0.4.11.md)
 
-## Library Status
+### Library Status 0.3.5
 
 - [0.3.5 검증 및 릴리스 기준](./releases/library-status-0.3.5.md)
 - [0.3.5 공개 패키지 최종 검증](./releases/library-status-0.3.5-package-validation.md)
 
-Library Status는 Metadata Source와 버전 번호를 공유하지 않습니다. 예를 들어 Metadata Source 0.5.3과 Library Status 0.3.5는 서로 다른 플러그인의 독립적인 버전입니다.
+Library Status는 Metadata Source와 버전 번호를 공유하지 않습니다.
 
 ## GitHub Release 자산
 
