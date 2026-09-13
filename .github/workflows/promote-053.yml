@@ -1,0 +1,166 @@
+name: Promote YES24 0.5.3
+
+on:
+  push:
+    branches: [release-0.5.3]
+    paths: ['.github/workflows/promote-053.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release-0.5.3
+          fetch-depth: 0
+
+      - name: Consolidate 0.5.1 through 0.5.3 into public source
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('yes24.py')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old, new, label):
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one anchor, found {count}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '    version = (0, 5, 0)\n',
+              '    version = (0, 5, 3)\n',
+              'version',
+          )
+          replace_once(
+              '        "identifier:isbn",\n',
+              '        "identifier:isbn",\n        "identifier:yes24",\n',
+              'YES24 identifier touched field',
+          )
+          replace_once(
+              '        isbn = cls._clean_isbn13(item.get("isbn13"))\n'
+              '        if isbn:\n'
+              '            mi.set_identifier("isbn", isbn)\n\n'
+              '        publisher = cls._clean_text(item.get("publisher"))\n',
+              '        isbn = cls._clean_isbn13(item.get("isbn13"))\n'
+              '        if isbn:\n'
+              '            mi.set_identifier("isbn", isbn)\n\n'
+              '        # Preserve the exact YES24 product identity so the separate\n'
+              '        # Library Status plugin can match the user-selected edition.\n'
+              '        item_id = str(item.get("itemId") or "").strip()\n'
+              '        if item_id.isdigit():\n'
+              '            mi.set_identifier("yes24", item_id)\n\n'
+              '        publisher = cls._clean_text(item.get("publisher"))\n',
+              'YES24 itemId metadata bridge',
+          )
+          replace_once(
+              '        add(cls._core_title(title))\n'
+              '        if not queries and authors:\n'
+              '            add(authors[0])\n\n'
+              '        return queries\n',
+              '        add(cls._core_title(title))\n'
+              '        if not queries and authors:\n'
+              '            add(authors[0])\n\n'
+              '        # YES24 sometimes stores ASCII letter/number compounds without\n'
+              '        # the spacing used in Calibre, e.g. TOP 99 -> TOP99. Broaden\n'
+              '        # discovery only; Korean word/number spacing is left unchanged.\n'
+              '        for query in list(queries):\n'
+              '            compact = query\n'
+              '            previous = None\n'
+              '            while compact != previous:\n'
+              '                previous = compact\n'
+              '                compact = re.sub(r"(?<=[A-Za-z])\\s+(?=\\d)", "", compact)\n'
+              '                compact = re.sub(r"(?<=\\d)\\s+(?=[A-Za-z])", "", compact)\n'
+              '            add(compact)\n\n'
+              '        return queries\n',
+              '0.5.2 ASCII alnum search fallback',
+          )
+          replace_once(
+              '    def _title_sequence_conflict(cls, query_title, item):\n'
+              '        query_number = cls._title_sequence_number(query_title)\n'
+              '        if query_number is None:\n'
+              '            return False\n\n'
+              '        candidate_number = cls._title_sequence_number(item.get("title"))\n'
+              '        return candidate_number != query_number\n',
+              '    def _title_sequence_conflict(cls, query_title, item):\n'
+              '        candidate_title = cls._clean_text((item or {}).get("title"))\n'
+              '        query_key = cls._normalize_match_text(query_title)\n'
+              '        candidate_key = cls._normalize_match_text(candidate_title)\n'
+              '        if query_key and candidate_key and query_key == candidate_key:\n'
+              '            return False\n\n'
+              '        query_number = cls._title_sequence_number(query_title)\n'
+              '        if query_number is None:\n'
+              '            return False\n\n'
+              '        candidate_number = cls._title_sequence_number(candidate_title)\n'
+              '        return candidate_number != query_number\n',
+              '0.5.3 sequence conflict guard',
+          )
+
+          compile(text, 'yes24.py', 'exec')
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Update public documentation and CI contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          readme = Path('README.md')
+          text = readme.read_text(encoding='utf-8')
+          text = text.replace('현재 공개 릴리스 / Current public release: **0.5.0**', '현재 공개 릴리스 / Current public release: **0.5.3**', 1)
+          marker = '## 0.5.0의 핵심 / What\'s new\n'
+          summary = '''## 0.5.3의 핵심 / What's new\n\n0.5.3은 0.5.0 이후의 실사용 회귀 수정을 누적한 안정화 릴리스입니다. 선택한 YES24 상품의 `itemId`를 Calibre `yes24` 식별자로 저장하며, `TOP 99` / `TOP99`처럼 ASCII 문자와 숫자 사이 공백만 다른 제목도 검색합니다. 또한 이 공백 차이를 권차 충돌로 오인해 정확한 ISBN 결과까지 제외하던 문제를 수정했습니다.\n\n- YES24 `itemId` → Calibre `identifier:yes24` 저장\n- `TOP 99` → `TOP99`, `3 D` → `3D` 검색 fallback\n- 정규화 제목이 동일하면 숫자 권차 충돌로 오인하지 않음\n- 기존 0.5.0의 후보 랭킹, 판본 안전성, 표지, 시리즈 동작 유지\n\n'''
+          if marker not in text:
+              raise SystemExit('README release marker not found')
+          text = text.replace(marker, summary + marker, 1)
+          text = text.replace('identifier:isbn\npublisher', 'identifier:isbn\nidentifier:yes24\npublisher', 1)
+          readme.write_text(text, encoding='utf-8')
+
+          notes = '''# YES24 Metadata Source for Calibre 0.5.3\n\n0.5.3은 0.5.0 이후 실사용에서 발견된 식별자 연계와 검색 회귀를 정리한 안정화 릴리스입니다.\n\n## 주요 변경\n\n- 선택한 YES24 상품의 `itemId`를 Calibre의 `yes24` 식별자로 저장합니다. 별도의 YES24 Library Status 플러그인이 사용자가 선택한 정확한 판본을 식별할 수 있습니다.\n- ASCII 문자와 숫자 사이 공백 차이를 보완하는 검색 fallback을 추가했습니다. 예: `TOP 99` → `TOP99`, `3 D` → `3D`. 한국어 일반 띄어쓰기나 `제 3권` 같은 표현은 임의로 합치지 않습니다.\n- `TOP 99`와 `TOP99`가 기존 정규화 기준으로 같은 제목인데도 standalone 숫자를 권차로 오인해 후보를 제외하던 문제를 수정했습니다. 정규화 제목이 동일한 경우에만 sequence-conflict 판정을 건너뛰므로 실제 권차 충돌 검사는 그대로 유지됩니다.\n\n## 실사용 회귀 확인\n\n`부린이가 가장 궁금한 질문 TOP 99` / 레비앙 / ISBN `9791161253718` 사례에서 YES24의 실제 제목 `부린이가 가장 궁금한 질문 TOP99`를 찾고 정확한 판본을 반환하는 것을 Calibre에서 확인했습니다.\n\n## 누적 호환성\n\n0.5.0의 ranked candidate discovery, exact compatible ISBN 처리, 선택 후보별 표지 캐시, title/subtitle matching, contributor/translator 판본 검사, 보수적인 series/series_index 처리와 Comments 안전장치를 유지합니다.\n'''
+          Path('RELEASE_NOTES_0.5.3.md').write_text(notes, encoding='utf-8')
+
+          ci = Path('.github/workflows/ci.yml')
+          c = ci.read_text(encoding='utf-8')
+          c = c.replace('Verify 0.5.0 behavior markers', 'Verify 0.5.3 behavior markers')
+          c = c.replace("assert 'version = (0, 5, 0)' in source", "assert 'version = (0, 5, 3)' in source")
+          c = c.replace("print('YES24 0.5.0 behavior contract: OK')", "assert '\"identifier:yes24\"' in source\n          assert 'mi.set_identifier(\"yes24\", item_id)' in source\n          assert 'TOP 99' in Path('RELEASE_NOTES_0.5.3.md').read_text(encoding='utf-8')\n          print('YES24 0.5.3 behavior contract: OK')")
+          c = c.replace("assert 'version = (0, 5, 0)' in source", "assert 'version = (0, 5, 3)' in source")
+          ci.write_text(c, encoding='utf-8')
+          PY
+
+      - name: Validate consolidated source
+        run: |
+          python -m py_compile yes24.py build_plugin.py
+          python build_plugin.py
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          source = Path('yes24.py').read_text(encoding='utf-8')
+          assert 'version = (0, 5, 3)' in source
+          assert '"identifier:yes24"' in source
+          assert 'mi.set_identifier("yes24", item_id)' in source
+          assert 'compact = re.sub(r"(?<=[A-Za-z])\\s+(?=\\d)"' in source
+          with ZipFile('Yes24.zip') as z:
+              plugin = z.read('__init__.py').decode('utf-8')
+              compile(plugin, '__init__.py', 'exec')
+              assert 'version = (0, 5, 3)' in plugin
+          print('YES24 0.5.3 consolidated public source: OK')
+          PY
+
+      - name: Commit promoted source and remove one-shot workflow
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add yes24.py README.md RELEASE_NOTES_0.5.3.md .github/workflows/ci.yml
+          git rm .github/workflows/promote-053.yml
+          git commit -m 'Release YES24 metadata source 0.5.3'
+          git push origin HEAD:release-0.5.3
