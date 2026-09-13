@@ -43,7 +43,7 @@ Yes24LibraryStatus.zip  # Library Status
 
 GitHub가 자동 생성하는 `Source code (zip)`은 Calibre 플러그인 설치 파일이 아닙니다.
 
-> 현재 Metadata Source 0.5.3은 공개 안정 릴리스입니다. Library Status 0.3.5는 실사용 검증을 완료했으며 같은 저장소의 공개 패키지 구조로 정리 중입니다.
+> Metadata Source 0.5.3은 공개 안정 릴리스입니다. Library Status 0.3.5는 실사용 검증을 완료했고 공개 소스/CI 패키징 단계에 있습니다. `Yes24LibraryStatus.zip`의 공식 Release 자산은 공개 소스 후보를 Calibre에서 재검증한 뒤 게시합니다.
 
 ## YES24 API Key
 
@@ -135,6 +135,27 @@ current snapshot은 Calibre 프로세스 메모리에만 보관하고 종료 시
 
 릴리스 노트: [RELEASE_NOTES_0.5.3.md](./RELEASE_NOTES_0.5.3.md)
 
+## 저장소 구조
+
+기존 Metadata Source 공개 경로는 호환성을 위해 루트에 유지하고, Library Status는 별도 디렉터리에 둡니다.
+
+```text
+Calibre-Yes24-OpenAPI/
+├─ yes24.py
+├─ build_plugin.py
+├─ library_status/
+│  ├─ __init__.py
+│  ├─ ui.py
+│  ├─ client.py
+│  ├─ columns.py
+│  ├─ history.py
+│  ├─ build_plugin.py
+│  └─ tests...
+└─ docs/
+```
+
+Library Status의 내부 개발용 버전별 overlay 파일은 공개 소스에 포함하지 않고, 실사용 검증된 동작을 `library_status/ui.py`에 통합합니다.
+
 ## 문서
 
 문서 전체 목차는 [docs/README.md](./docs/README.md)에서 확인할 수 있습니다.
@@ -148,6 +169,7 @@ docs/
 ├─ network-and-data.md
 ├─ releases.md
 └─ releases/
+   ├─ metadata-source-0.5.3.md
    └─ library-status-0.3.5.md
 ```
 
@@ -155,7 +177,8 @@ docs/
 
 ## 요구 사항
 
-- Calibre 5.0 or later
+- **Metadata Source:** Calibre 5.0 이상
+- **Library Status:** Calibre 9.0 이상
 - YES24 Open API Key
 - YES24 Open API 및 필요한 YES24 페이지에 대한 네트워크 접근
 
@@ -163,14 +186,25 @@ Library Status 자동 연동은 Metadata Source와 함께 사용하는 것을 �
 
 ## 소스 빌드
 
-Metadata Source는 현재 저장소 루트에서 빌드합니다.
+Metadata Source:
 
 ```powershell
 python .\build_plugin.py
-& "C:\Program Files\Calibre2\calibre-customize.exe" -a ".\Yes24.zip"
+& "D:\Program Files\Calibre2\calibre-customize.exe" -a ".\Yes24.zip"
 ```
 
-Library Status의 공개 소스 디렉터리와 빌드 경로는 0.3.5 공개 패키징과 함께 이 저장소에 추가합니다.
+Library Status:
+
+```powershell
+cd .\library_status
+python .\test_status_core.py
+python .\test_history_core.py
+python .\test_public_contract.py
+python .\build_plugin.py
+& "D:\Program Files\Calibre2\calibre-customize.exe" -a ".\Yes24LibraryStatus.zip"
+```
+
+공개 소스 구조에 대한 개발자 설명은 [library_status/README.md](./library_status/README.md)를 참고하세요.
 
 ## 버그 리포트
 
