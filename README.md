@@ -6,9 +6,18 @@ An independent Calibre Desktop metadata source plugin using the official YES24 O
 
 한국 도서의 제목, 저자, ISBN, 출판사, 발행일, 책소개, 태그, 언어, 시리즈와 고해상도 표지를 Calibre로 가져옵니다. 이 프로젝트는 YES24 또는 Calibre의 공식 플러그인이 아니며, 두 프로젝트와 제휴·승인 관계를 주장하지 않습니다.
 
-현재 공개 릴리스 / Current public release: **0.5.0**
+현재 공개 릴리스 / Current public release: **0.5.3**
 
-## 0.5.0의 핵심 / What's new
+## 0.5.3의 핵심 / What's new
+
+0.5.3은 0.5.0 이후 실사용에서 발견된 식별자 연계와 검색 회귀를 누적 수정한 안정화 릴리스입니다.
+
+- 선택한 YES24 상품의 `itemId`를 Calibre `identifier:yes24`로 저장
+- `TOP 99` → `TOP99`, `3 D` → `3D`처럼 ASCII 문자/숫자 사이 공백 차이를 검색 fallback으로 보완
+- 정규화 제목이 동일한 `TOP 99` / `TOP99`를 숫자 권차 충돌로 오인하던 문제 수정
+- 실제로 다른 권차의 제목에 대한 기존 sequence-conflict 검사는 유지
+
+## 0.5.0의 핵심 / Ranked candidate discovery
 
 0.5.0부터 ISBN이 없는 **낱권 검색**에서는 플러그인이 하나의 판본을 임의로 확정하지 않습니다. 관련 YES24 후보를 모아 서지 유사성 점수가 높은 순서대로 최대 10개를 Calibre에 반환하고, 사용자가 원하는 판본을 선택합니다.
 
@@ -27,6 +36,7 @@ An independent Calibre Desktop metadata source plugin using the official YES24 O
 
 - YES24 공식 Open API 기반 검색
 - ISBN-13 직접 조회
+- YES24 `itemId`를 `identifier:yes24`로 저장
 - ISBN이 없거나 저장 ISBN이 맞지 않을 때 제목/저자 후보 검색
 - 제목/부제 구조를 고려한 검색과 유사도 랭킹
 - 번역자 및 보조 기여자를 이용한 판본 구분
@@ -112,6 +122,7 @@ YES24 `seriesId`는 권 번호가 아니라 시리즈 자체의 식별자입니�
 title
 authors
 identifier:isbn
+identifier:yes24
 publisher
 pubdate
 comments
