@@ -43,7 +43,7 @@ Yes24LibraryStatus.zip  # Library Status
 
 GitHub가 자동 생성하는 `Source code (zip)`은 Calibre 플러그인 설치 파일이 아닙니다.
 
-> Metadata Source 0.5.3은 공개 안정 릴리스입니다. Library Status 0.3.5는 실사용 검증을 완료했고 공개 소스/CI 패키징 단계에 있습니다. `Yes24LibraryStatus.zip`의 공식 Release 자산은 공개 소스 후보를 Calibre에서 재검증한 뒤 게시합니다.
+> Metadata Source 0.5.3과 Library Status 0.3.5는 공개 안정 릴리스입니다. GitHub Releases에서 `Yes24.zip`과 `Yes24LibraryStatus.zip`을 각각 설치할 수 있습니다.
 
 ## YES24 API Key
 

@@ -7,7 +7,7 @@
 | 플러그인 | 버전 | 상태 | 설치 파일 |
 | --- | ---: | --- | --- |
 | YES24 Metadata Source | 0.5.3 | 공개 안정 릴리스 | `Yes24.zip` |
-| YES24 Library Status | 0.3.5 | 실사용 검증 완료, 공개 패키징 진행 | `Yes24LibraryStatus.zip` |
+| YES24 Library Status | 0.3.5 | 공개 안정 릴리스 | `Yes24LibraryStatus.zip` |
 
 ## 릴리스 노트 규칙
 
@@ -36,6 +36,7 @@ docs/releases/
 ## Library Status
 
 - [0.3.5 검증 및 릴리스 기준](./releases/library-status-0.3.5.md)
+- [0.3.5 공개 패키지 최종 검증](./releases/library-status-0.3.5-package-validation.md)
 
 Library Status는 Metadata Source와 버전 번호를 공유하지 않습니다. 예를 들어 Metadata Source 0.5.3과 Library Status 0.3.5는 서로 다른 플러그인의 독립적인 버전입니다.
 
