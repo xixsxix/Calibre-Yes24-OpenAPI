@@ -17,7 +17,7 @@ jobs:
       - name: Compile sources
         run: python -m py_compile yes24.py build_plugin.py
 
-      - name: Verify 0.5.0 behavior markers
+      - name: Verify 0.5.3 behavior markers
         run: |
           python - <<'PY'
           import ast
@@ -32,8 +32,15 @@ jobs:
           rank = ast.get_source_segment(source, funcs['_rank_and_filter'])
           metrics = ast.get_source_segment(source, funcs['_candidate_metrics'])
           cover = ast.get_source_segment(source, funcs['download_cover'])
+          search_queries = ast.get_source_segment(source, funcs['_search_queries'])
+          sequence = ast.get_source_segment(source, funcs['_title_sequence_conflict'])
+          metadata = ast.get_source_segment(source, funcs['_metadata_from_item'])
 
-          assert 'version = (0, 5, 0)' in source
+          assert 'version = (0, 5, 3)' in source
+          assert '"identifier:yes24"' in source
+          assert 'mi.set_identifier("yes24", item_id)' in metadata
+          assert '(?<=[A-Za-z])' in search_queries and '(?=\\d)' in search_queries
+          assert 'query_key == candidate_key' in sequence
           assert 'MAX_IDENTIFY_RESULTS = 10' in source
           assert 'search_items.extend(' in identify
           assert '_top_candidate_is_safe(' not in identify
@@ -42,7 +49,7 @@ jobs:
           assert 'score -= min(source_order' not in metrics
           assert 'YES24 selected-candidate cover cache hit' in cover
           assert cover.index('cached = self.get_cached_cover_url') < cover.index('item = None')
-          print('YES24 0.5.0 behavior contract: OK')
+          print('YES24 0.5.3 behavior contract: OK')
           PY
 
       - name: Build plugin ZIP
@@ -61,7 +68,8 @@ jobs:
               assert names == ['__init__.py'], names
               source = archive.read('__init__.py').decode('utf-8')
               compile(source, '__init__.py', 'exec')
-              assert 'version = (0, 5, 0)' in source
+              assert 'version = (0, 5, 3)' in source
+              assert '"identifier:yes24"' in source
               assert 'MAX_IDENTIFY_RESULTS = 10' in source
               assert 'YES24 selected-candidate cover cache hit' in source
           print('Yes24.zip structure and source compile: OK')
