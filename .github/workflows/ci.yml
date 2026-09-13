@@ -8,16 +8,16 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  metadata-source:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Compile sources
+      - name: Compile Metadata Source
         run: python -m py_compile yes24.py build_plugin.py
 
-      - name: Verify 0.5.3 behavior markers
+      - name: Verify Metadata Source 0.5.3 behavior markers
         run: |
           python - <<'PY'
           import ast
@@ -49,13 +49,13 @@ jobs:
           assert 'score -= min(source_order' not in metrics
           assert 'YES24 selected-candidate cover cache hit' in cover
           assert cover.index('cached = self.get_cached_cover_url') < cover.index('item = None')
-          print('YES24 0.5.3 behavior contract: OK')
+          print('YES24 Metadata Source 0.5.3 behavior contract: OK')
           PY
 
-      - name: Build plugin ZIP
+      - name: Build Metadata Source ZIP
         run: python build_plugin.py
 
-      - name: Verify plugin ZIP
+      - name: Verify Metadata Source ZIP
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -73,4 +73,61 @@ jobs:
               assert 'MAX_IDENTIFY_RESULTS = 10' in source
               assert 'YES24 selected-candidate cover cache hit' in source
           print('Yes24.zip structure and source compile: OK')
+          PY
+
+  library-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compile Library Status sources
+        working-directory: library_status
+        run: |
+          python -m py_compile \
+            __init__.py ui.py client.py columns.py history.py \
+            build_plugin.py test_status_core.py test_history_core.py \
+            test_public_contract.py
+
+      - name: Run Library Status core tests
+        working-directory: library_status
+        run: |
+          python test_status_core.py
+          python test_history_core.py
+          python test_public_contract.py
+
+      - name: Build Library Status ZIP
+        working-directory: library_status
+        run: python build_plugin.py
+
+      - name: Verify Library Status ZIP
+        working-directory: library_status
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          path = Path('Yes24LibraryStatus.zip')
+          assert path.is_file(), 'Yes24LibraryStatus.zip was not built'
+          expected = {
+              '__init__.py',
+              'ui.py',
+              'client.py',
+              'columns.py',
+              'history.py',
+              'plugin-import-name-yes24_library_status.txt',
+          }
+          with ZipFile(path) as archive:
+              names = set(archive.namelist())
+              assert names == expected, names
+              for name in ('__init__.py', 'ui.py', 'client.py', 'columns.py', 'history.py'):
+                  source = archive.read(name).decode('utf-8')
+                  compile(source, name, 'exec')
+              init = archive.read('__init__.py').decode('utf-8')
+              ui = archive.read('ui.py').decode('utf-8')
+              assert 'version = (0, 3, 5)' in init
+              assert 'yes24_library_status.ui:' in init
+              assert 'SNAPSHOT_FRESH_TTL_SECONDS = 10 * 60' in ui
+              assert 'worker_class = CachedStatusWorker' in ui
+          print('Yes24LibraryStatus.zip structure and source compile: OK')
           PY
