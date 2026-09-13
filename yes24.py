@@ -72,13 +72,14 @@ class Yes24(Source):
     name = "Yes24"
     description = "Downloads metadata and high-resolution covers from YES24"
     author = "xixsxix"
-    version = (0, 5, 0)
+    version = (0, 5, 3)
     minimum_calibre_version = (5, 0, 0)
     capabilities = frozenset({"identify", "cover"})
     touched_fields = frozenset({
         "title",
         "authors",
         "identifier:isbn",
+        "identifier:yes24",
         "publisher",
         "pubdate",
         "comments",
@@ -530,6 +531,16 @@ class Yes24(Source):
         add(cls._core_title(title))
         if not queries and authors:
             add(authors[0])
+
+        # Broaden discovery for ASCII letter/number spacing variants only.
+        for query in list(queries):
+            compact = query
+            previous = None
+            while compact != previous:
+                previous = compact
+                compact = re.sub(r"(?<=[A-Za-z])\s+(?=\d)", "", compact)
+                compact = re.sub(r"(?<=\d)\s+(?=[A-Za-z])", "", compact)
+            add(compact)
 
         return queries
 
@@ -1871,11 +1882,17 @@ class Yes24(Source):
 
     @classmethod
     def _title_sequence_conflict(cls, query_title, item):
+        candidate_title = cls._clean_text((item or {}).get("title"))
+        query_key = cls._normalize_match_text(query_title)
+        candidate_key = cls._normalize_match_text(candidate_title)
+        if query_key and candidate_key and query_key == candidate_key:
+            return False
+
         query_number = cls._title_sequence_number(query_title)
         if query_number is None:
             return False
 
-        candidate_number = cls._title_sequence_number(item.get("title"))
+        candidate_number = cls._title_sequence_number(candidate_title)
         return candidate_number != query_number
 
     @classmethod
@@ -2272,6 +2289,12 @@ class Yes24(Source):
         isbn = cls._clean_isbn13(item.get("isbn13"))
         if isbn:
             mi.set_identifier("isbn", isbn)
+
+        # Preserve the exact YES24 product identity so the separate
+        # Library Status plugin can match the user-selected edition.
+        item_id = str(item.get("itemId") or "").strip()
+        if item_id.isdigit():
+            mi.set_identifier("yes24", item_id)
 
         publisher = cls._clean_text(item.get("publisher"))
         if publisher:
