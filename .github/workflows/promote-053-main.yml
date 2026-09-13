@@ -1,0 +1,38 @@
+name: Promote 0.5.3 source
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/promote-053-main.yml']
+permissions:
+  contents: write
+jobs:
+  promote:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python promote_053.py
+      - run: python -m py_compile yes24.py && python build_plugin.py
+      - name: Validate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          s=Path('yes24.py').read_text(encoding='utf-8')
+          assert 'version = (0, 5, 3)' in s
+          assert '"identifier:yes24"' in s
+          assert 'mi.set_identifier("yes24", item_id)' in s
+          with ZipFile('Yes24.zip') as z:
+              p=z.read('__init__.py').decode('utf-8')
+              compile(p,'__init__.py','exec')
+              assert 'version = (0, 5, 3)' in p
+          print('0.5.3 public source validation OK')
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add yes24.py
+          git rm promote_053.py .github/workflows/promote-053-main.yml
+          git commit -m 'Consolidate YES24 metadata source 0.5.3'
+          git push origin HEAD:main
