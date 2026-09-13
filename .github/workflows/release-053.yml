@@ -1,3 +1,4 @@
+# one-shot release trigger
 name: Release YES24 0.5.3
 on:
   push:
