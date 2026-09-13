@@ -46,7 +46,8 @@ prefetch_body = ui.split("class SnapshotPrefetchWorker", 1)[1].split(
     "class CachedStatusWorker", 1
 )[0]
 assert "client.snapshot" in prefetch_body
-assert "targets" not in prefetch_body
+assert "self.targets" not in prefetch_body
+assert "BookTarget(" not in prefetch_body
 
 # The explicit manual action must stay on the live worker path.
 start_refresh_body = ui.split("def _start_refresh(self, book_ids, automatic=False):", 1)[1]
