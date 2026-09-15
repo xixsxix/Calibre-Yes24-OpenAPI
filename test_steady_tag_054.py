@@ -18,6 +18,7 @@ for needle in (
 ):
     assert needle in patch, needle
 
-assert 'PATCH = ROOT / "yes24_054_patch.py"' in build
-assert "Runtime version: Yes24 (0, 5, 4)" in build
+assert 'ROOT / "yes24_054_patch.py"' in build
+assert 'ROOT / "yes24_055_patch.py"' in build
+assert "Runtime version: Yes24 (0, 5, 5)" in build
 print("YES24 Metadata Source 0.5.4 steady tag contract: OK")
