@@ -46,10 +46,7 @@ jobs:
       - name: Compile Library Status sources
         working-directory: library_status
         run: |
-          python -m py_compile \
-            __init__.py ui.py ui_036.py client.py columns.py history.py steady_cache.py \
-            build_plugin.py test_status_core.py test_history_core.py \
-            test_public_contract.py test_steady_cache.py
+          python -m py_compile __init__.py ui.py ui_036.py client.py columns.py history.py steady_cache.py build_plugin.py test_status_core.py test_history_core.py test_public_contract.py test_steady_cache.py
       - name: Run Library Status core tests
         working-directory: library_status
         run: |
@@ -68,10 +65,11 @@ jobs:
           from zipfile import ZipFile
           path = Path('Yes24LibraryStatus.zip')
           assert path.is_file()
-          expected = {'__init__.py','ui.py','ui_036.py','client.py','columns.py','history.py','steady_cache.py','plugin-import-name-yes24_library_status.txt'}
+          expected = {'__init__.py','ui.py','ui_036.py','client.py','columns.py','history.py','steady_cache.py','images/icon.png','plugin-import-name-yes24_library_status.txt'}
           with ZipFile(path) as archive:
               assert set(archive.namelist()) == expected
               init = archive.read('__init__.py').decode('utf-8')
-              assert 'version = (0, 3, 6)' in init
-          print('Yes24LibraryStatus.zip 0.3.6 structure and source compile: OK')
+              assert 'version = (0, 3, 7)' in init
+              assert len(archive.read('images/icon.png')) > 1000
+          print('Yes24LibraryStatus.zip 0.3.7 structure, icon and source compile: OK')
           PY
