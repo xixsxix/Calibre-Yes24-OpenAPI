@@ -6,18 +6,12 @@
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-
 ROOT = Path(__file__).resolve().parent
 OUTPUT = ROOT / "Yes24LibraryStatus.zip"
 
 SOURCE_FILES = (
-    "__init__.py",
-    "ui.py",
-    "ui_036.py",
-    "client.py",
-    "columns.py",
-    "history.py",
-    "steady_cache.py",
+    "__init__.py", "ui.py", "ui_036.py", "client.py", "columns.py",
+    "history.py", "steady_cache.py", "images/icon.png",
 )
 
 
@@ -25,14 +19,17 @@ def main():
     missing = [name for name in SOURCE_FILES if not (ROOT / name).is_file()]
     if missing:
         raise SystemExit("Missing source files: " + ", ".join(missing))
-
     with ZipFile(OUTPUT, "w", compression=ZIP_DEFLATED) as archive:
         for name in SOURCE_FILES:
             archive.write(ROOT / name, name)
         archive.writestr("plugin-import-name-yes24_library_status.txt", b"")
-
+    with ZipFile(OUTPUT, "r") as archive:
+        packaged = set(archive.namelist())
+    if "images/icon.png" not in packaged:
+        raise SystemExit("Built plugin is missing images/icon.png")
     print(f"Built: {OUTPUT}")
-    print("Runtime version: YES24 Library Status (0, 3, 6)")
+    print("Runtime version: YES24 Library Status (0, 3, 7)")
+    print("Toolbar icon: images/icon.png")
 
 
 if __name__ == "__main__":
