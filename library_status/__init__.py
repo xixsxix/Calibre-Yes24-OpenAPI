@@ -17,7 +17,7 @@ class Yes24LibraryStatusPlugin(InterfaceActionBase):
     )
     supported_platforms = ["windows", "osx", "linux"]
     author = "xixsxix"
-    version = (0, 3, 6)
+    version = (0, 3, 7)
     minimum_calibre_version = (9, 0, 0)
     actual_plugin = (
         "calibre_plugins.yes24_library_status.ui_036:"
