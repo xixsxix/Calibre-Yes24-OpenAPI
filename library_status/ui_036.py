@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Startup storefront steady-seller cache for YES24 Library Status 0.3.6."""
+"""Startup storefront steady-seller cache for YES24 Library Status 0.3.7."""
 
 from threading import Event, Thread
 import time
@@ -61,6 +61,9 @@ class Yes24LibraryStatusAction036(Yes24LibraryStatusAction):
 
     def genesis(self):
         super().genesis()
+        icon = get_icons("images/icon.png", "YES24 Library Status")
+        self.qaction.setIcon(icon)
+        auto_debug(f"toolbar icon loaded null={icon.isNull()!r}")
         self._steady_cache_worker = None
         self._steady_cache_abort = None
         self._steady_cache_signals = None
@@ -77,7 +80,7 @@ class Yes24LibraryStatusAction036(Yes24LibraryStatusAction):
     def initialization_complete(self):
         super().initialization_complete()
         auto_debug(
-            "0.3.6 storefront steady-seller cache scheduled "
+            "0.3.7 storefront steady-seller cache scheduled "
             f"delay={STEADY_CACHE_STARTUP_DELAY_MS}ms"
         )
         self._steady_cache_start_timer.start()
@@ -123,7 +126,7 @@ class Yes24LibraryStatusAction036(Yes24LibraryStatusAction):
         self._clear_steady_cache_worker()
 
     def shutting_down(self):
-        auto_debug("0.3.6 shutting down; stopping steady-seller cache worker")
+        auto_debug("0.3.7 shutting down; stopping steady-seller cache worker")
         for timer in (
             getattr(self, "_steady_cache_start_timer", None),
             getattr(self, "_steady_cache_retry_timer", None),
